@@ -197,7 +197,7 @@ watch(searchQuery, (newVal) => {
     return;
   }
 
-  // ✅ 站内模式下，输入时自动全站搜索（加 300ms 防抖，避免每个字都请求）
+  // ✅ 站内模式下，输入时自动全站搜索（加 100ms 防抖，避免每个字都请求）
   if (selectedEngine.value.name === 'site') {
     clearTimeout(searchTimer);
     searchTimer = setTimeout(async () => {
@@ -213,7 +213,7 @@ watch(searchQuery, (newVal) => {
       } catch (err) {
         console.error('站内搜索出错:', err);
       }
-    }, 300);
+    }, 100);
   }
 });
 
