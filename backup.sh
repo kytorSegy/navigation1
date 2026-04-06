@@ -1,6 +1,6 @@
 #!/bin/bash
 # -----------------------------------------------------------------------------
-# backup.sh - SQL 文本同步脚本 (纯中文日志 + 子进程输出保留版)
+# backup.sh - SQL 文本同步脚本 (纯中文汇报版 + 进度提示)
 # -----------------------------------------------------------------------------
 
 # 运行前检测所需依赖 (静默补全)
@@ -57,7 +57,7 @@ export_db_to_sql() {
 
 # 核心功能 2: 还原 (SQL -> Live DB)
 restore_db_from_sql() {
-    echo "[同步] 正在从 SQL 还原数据库..."
+    echo "[同步] 正在将云端 SQL 还原到本地数据库..."
     TEMP_DB="/tmp/nav_restore.db"
     if [ -f "$TEMP_DB" ]; then rm "$TEMP_DB"; fi
     
@@ -67,7 +67,7 @@ restore_db_from_sql() {
         cat "$TEMP_DB" > "$SOURCE_FILE"
         rm "$TEMP_DB"
         fix_permissions
-        echo "[同步] 数据库还原完成。SQLite 会自动加载新数据，无需重启。"
+        echo "[同步] 数据库还原完成！系统已自动加载新数据。"
     else
         echo "[错误] SQL 转换失败，跳过还原。"
     fi
@@ -77,13 +77,13 @@ restore_db_from_sql() {
 init_repo() {
     git config --global --add safe.directory "$BACKUP_DIR"
     if [ ! -d "$BACKUP_DIR" ]; then
-        echo "[同步] 正在克隆仓库..."
-        git clone "$GIT_URL" "$BACKUP_DIR" || exit 1
+        echo "[同步] 正在克隆云端仓库..."
+        git clone -q "$GIT_URL" "$BACKUP_DIR" || exit 1
         cd "$BACKUP_DIR" || exit
         git config user.email "$GITHUB_EMAIL"
         git config user.name "$GITHUB_NAME"
         if [ -f "$SQL_FILE" ]; then
-             echo "[同步] 检测到云端备份，执行初始恢复..."
+             echo "[同步] 检测到云端已有备份，执行初始恢复..."
              cd ..
              restore_db_from_sql
              cd "$BACKUP_DIR" || exit
@@ -95,7 +95,7 @@ init_repo() {
 
 # 监控循环
 monitor() {
-    echo "[同步] 启动后台监控 (SQL文本同步)..."
+    echo "[同步] 启动后台监控 (当前模式: SQL文本双向同步)..."
     LAST_TIME=$(stat -c %Y "$SOURCE_FILE" 2>/dev/null || echo 0)
 
     while true; do
@@ -103,10 +103,12 @@ monitor() {
         
         # 阶段一：下行同步 (Cloud -> Local)
         cd "$BACKUP_DIR" || exit
-        git fetch origin main
+        # 使用 -q 让它安静检查，不输出 FETCH_HEAD
+        git fetch origin main -q
+        
         if [ $(git rev-list HEAD..origin/main --count) -gt 0 ]; then
-            echo "[同步] 云端有更新，正在拉取..."
-            git pull origin main --rebase
+            echo "[同步] 发现云端数据有更新，正在拉取..."
+            git pull origin main --rebase -q
             if git diff HEAD@{1} HEAD --name-only | grep -q "$SQL_FILE"; then
                 cd ..
                 restore_db_from_sql
@@ -122,12 +124,22 @@ monitor() {
 
         if [ "$CURRENT_TIME" != "$LAST_TIME" ]; then
             sleep 2
+            
+            echo "[同步] 检测到本地添加了新书签/修改了数据，准备备份..."
             export_db_to_sql
             cd "$BACKUP_DIR" || exit
+            
             git add "$SQL_FILE"
             if [ -n "$(git status --porcelain)" ]; then
-                git commit -m "数据更新: $(date '+%Y-%m-%d %H:%M:%S')"
-                git push origin main && echo "[同步] 推送成功。"
+                echo "[同步] 正在生成本次更新的数据快照..."
+                git commit -q -m "数据更新: $(date '+%Y-%m-%d %H:%M:%S')"
+                
+                echo "[同步] 正在将数据安全推送到云端..."
+                if git push origin main -q; then
+                    echo "[同步] 🎉 推送成功！云端数据已是最新状态。"
+                else
+                    echo "[警告] ⚠️ 推送失败，请稍后检查日志。"
+                fi
             fi
             LAST_TIME=$(stat -c %Y "$SOURCE_FILE")
             cd ..
