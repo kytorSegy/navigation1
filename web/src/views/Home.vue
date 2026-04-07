@@ -785,4 +785,136 @@ function handleLogoError(event) {
 .friend-link-logo img {
   width: 100%;
   height: 100%;
-  object
+  object-fit: contain;
+}
+.friend-link-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  font-size: 20px;
+  font-weight: 600;
+  border-radius: 8px;
+}
+.friend-link-info h4 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: #334155;
+  text-align: center;
+  line-height: 1.3;
+  word-break: break-all;
+}
+.copyright {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 14px;
+  margin: 0;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+.footer-link {
+  color: #ffffffcc;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+.footer-link:hover {
+  color: #1976d2;
+}
+:deep(.menu-bar) {
+  position: relative;
+  z-index: 2;
+}
+:deep(.card-grid) {
+  position: relative;
+  z-index: 2;
+}
+.ad-space-fixed {
+  position: fixed;
+  top: 13rem;
+  z-index: 10;
+  width: 90px;
+  min-width: 60px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 0;
+  background: transparent;
+  margin: 0;
+}
+.left-ad-fixed {
+  left: 0;
+}
+.right-ad-fixed {
+  right: 0;
+}
+.ad-space-fixed a {
+  width: 100%;
+  display: block;
+}
+.ad-space-fixed img {
+  width: 100%;
+  max-width: 90px;
+  max-height: 160px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.12);
+  background: #fff;
+  margin: 0 auto;
+}
+@media (max-width: 1200px) {
+  .content-wrapper {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  .ad-space {
+    width: 100%;
+    height: 100px;
+  }
+  .ad-placeholder {
+    height: 80px;
+  }
+}
+@media (max-width: 768px) {
+  .home-container {
+    padding-top: 80px;
+  }
+  .content-wrapper {
+    gap: 0.5rem;
+  }
+  .ad-space {
+    height: 60px;
+  }
+  .ad-placeholder {
+    height: 50px;
+    font-size: 12px;
+    padding: 1rem 0.5rem;
+  }
+  .footer {
+    padding-top: 2rem;
+  }
+  .friend-link-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.8);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 0.7rem;
+    padding: 0;
+  }
+  .copyright {
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 0.7rem;
+    margin: 0;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  }
+  .footer-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+  }
+}
+</style>
