@@ -4,7 +4,7 @@
   改动:
     1. [代码] .menu-bar button 改为 .menu-bar > .menu-item > button，消除 12 处 !important
     2. [动画] 菜单指示器增加渐变色 + hover 半透明预览
-    3. [动画] 二级菜单弹出增加 scale 缩放动画
+    3. [动画] 二级菜单弹出增加 scale 缩放动画 + 毛玻璃背景（保持透明质感）
     4. [移动端] 二级菜单字号从 8px 修复为 13px
     5. [代码] 移除 .sub-menu-item::before { display: none } hack
 ===================================================== -->
@@ -135,14 +135,15 @@ function hideSubMenu(menuId) {
   opacity: 1;
 }
 
-/* [改动3] 二级菜单弹出增加 scale 缩放动画 */
+/* [改动3] 二级菜单：毛玻璃背景 + scale 缩放弹出动画 */
 .sub-menu {
   position: absolute;
   top: 100%;
   left: 50%;
   transform: translateX(-50%) translateY(-8px) scale(0.95);
-  background: rgba(20, 20, 30, 0.85);
-  backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border-radius: 10px;
   min-width: 130px;
   opacity: 0;
@@ -151,8 +152,8 @@ function hideSubMenu(menuId) {
               transform 0.2s cubic-bezier(0.23, 1, 0.32, 1),
               visibility 0.2s;
   z-index: 1000;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4),
-              0 0 0 1px rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25),
+              inset 0 0 0 1px rgba(255, 255, 255, 0.12);
   padding: 4px 0;
   margin-top: 2px;
 }
@@ -166,7 +167,7 @@ function hideSubMenu(menuId) {
 /* [改动1] 子菜单样式 —— 不再需要任何 !important */
 .sub-menu-item {
   display: block;
-  width: 100%;
+  width: calc(100% - 8px);
   text-align: center;
   padding: 0.5rem 1rem;
   border: none;
@@ -180,7 +181,6 @@ function hideSubMenu(menuId) {
   margin: 0 4px;
   line-height: 1.5;
   box-sizing: border-box;
-  width: calc(100% - 8px);
 }
 
 .sub-menu-item:hover {
@@ -193,9 +193,6 @@ function hideSubMenu(menuId) {
   color: #399dff;
   font-weight: 500;
 }
-
-/* [改动5] 不再需要这个 hack，已删除:
-   .sub-menu-item::before { display: none; } */
 
 /* [改动4] 移动端：字号从 8px 修复为 13px */
 @media (max-width: 768px) {
