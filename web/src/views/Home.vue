@@ -1,9 +1,12 @@
 <template>
   <div class="home-container">
     
+    <div class="bg-placeholder"></div>
+
     <video
       v-if="isVideoBg"
       class="bg-video"
+      :class="{ 'fade-in': isBgLoaded }"
       :src="customBackground"
       autoplay
       loop
@@ -11,15 +14,23 @@
       playsinline
       ref="bgVideoRef"
       @ended="handleVideoEnded"
+      @canplay="isBgLoaded = true"
     ></video>
     
     <div 
       v-else
       class="bg-image"
+      :class="{ 'fade-in': isBgLoaded }"
       :style="customBackground ? { backgroundImage: `url('${customBackground}')` } : {}"
     ></div>
 
     <div class="content-overlay">
+      <button class="theme-toggle-btn" @click="showThemeSettings = true" title="自定义专属壁纸">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path>
+        </svg>
+      </button>
+
       <div class="menu-bar-fixed">
         <MenuBar 
           :menus="menus" 
@@ -84,7 +95,9 @@
           <p class="copyright">Copyright © 2025 Nav-Item | <a href="https://github.com/eooce/Nav-Item" target="_blank" class="footer-link">Powered by eooce</a></p>
         </div>
       </footer>
-    </div> <div v-if="showFriendLinks" class="modal-overlay" @click="showFriendLinks = false">
+    </div> 
+
+    <div v-if="showFriendLinks" class="modal-overlay" @click="showFriendLinks = false">
       <div class="modal-content" @click.stop>
         <div class="modal-header">
           <h3>友情链接</h3>
@@ -96,23 +109,10 @@
         </div>
         <div class="modal-body">
           <div class="friend-links-grid">
-            <a 
-              v-for="friend in friendLinks" 
-              :key="friend.id" 
-              :href="friend.url" 
-              target="_blank" 
-              class="friend-link-card"
-            >
+            <a v-for="friend in friendLinks" :key="friend.id" :href="friend.url" target="_blank" class="friend-link-card">
               <div class="friend-link-logo">
-                <img 
-                  v-if="friend.logo" 
-                  :src="friend.logo" 
-                  :alt="friend.title"
-                  @error="handleLogoError"
-                />
-                <div v-else class="friend-link-placeholder">
-                  {{ friend.title.charAt(0) }}
-                </div>
+                <img v-if="friend.logo" :src="friend.logo" :alt="friend.title" @error="handleLogoError" />
+                <div v-else class="friend-link-placeholder">{{ friend.title.charAt(0) }}</div>
               </div>
               <div class="friend-link-info">
                 <h4>{{ friend.title }}</h4>
@@ -122,6 +122,28 @@
         </div>
       </div>
     </div>
+
+    <div v-if="showThemeSettings" class="modal-overlay" @click="showThemeSettings = false">
+      <div class="modal-content theme-modal" @click.stop>
+        <div class="modal-header">
+          <h3>个性化壁纸设置</h3>
+          <button @click="showThemeSettings = false" class="close-btn">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 6L6 18M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <p class="theme-desc">您在这里设置的壁纸将保存在当前浏览器中，仅对您自己可见，互不干扰。</p>
+          <input v-model="visitorBgInput" type="text" placeholder="请输入任意图片或视频 (.mp4) 的链接" class="theme-input" />
+          <div class="theme-actions">
+            <button class="btn clear-theme-btn" @click="clearVisitorTheme">恢复默认全局壁纸</button>
+            <button class="btn save-theme-btn" @click="saveVisitorTheme">保存并应用</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </template>
 
@@ -140,60 +162,74 @@ const leftAds = ref([]);
 const rightAds = ref([]);
 const showFriendLinks = ref(false);
 const friendLinks = ref([]);
-const customBackground = ref('');
 
-// [新增]：定义一个变量来获取页面上的 video 元素，初始值为 null
+// [新增] 用于管理壁纸的变量
+const globalBackground = ref(''); // 站长在后台设置的全局默认壁纸
+const customBackground = ref(''); // 页面当前实际渲染的壁纸
+const showThemeSettings = ref(false); // 控制主题弹窗显示
+const visitorBgInput = ref(''); // 弹窗中输入框绑定的值
+const isBgLoaded = ref(false); // [加载优化] 控制是否完成加载并执行淡入
 const bgVideoRef = ref(null); 
 
-// [新增]：当视频播放结束时触发的函数，强制让视频回到开头并继续播放
 function handleVideoEnded() {
-  // 检查视频元素是否存在
   if (bgVideoRef.value) {
-    // 将视频播放进度重置为 0 秒
     bgVideoRef.value.currentTime = 0;
-    // 强制调用 play() 方法继续播放，并捕获可能出现的错误避免页面卡死
     bgVideoRef.value.play().catch(err => console.log('自动重新播放失败:', err));
   }
 }
 
-// 判定当前背景到底是不是视频
 const isVideoBg = computed(() => {
   if (!customBackground.value) return false;
   const url = customBackground.value.toLowerCase();
   return url.includes('.mp4') || url.includes('.webm') || url.includes('.ogg');
 });
 
-const searchEngines = [
-  {
-    name: 'google',
-    label: 'Google',
-    placeholder: 'Google 搜索...',
-    url: q => `https://www.google.com/search?q=${encodeURIComponent(q)}`
-  },
-  {
-    name: 'baidu',
-    label: '百度',
-    placeholder: '百度搜索...',
-    url: q => `https://www.baidu.com/s?wd=${encodeURIComponent(q)}`
-  },
-  {
-    name: 'bing',
-    label: 'Bing',
-    placeholder: 'Bing 搜索...',
-    url: q => `https://www.bing.com/search?q=${encodeURIComponent(q)}`
-  },
-  {
-    name: 'github',
-    label: 'github',
-    placeholder: 'GitHub 搜索...',
-    url: q => `https://github.com/search?q=${encodeURIComponent(q)}&type=repositories`
-  },
-  {
-    name: 'site',
-    label: '站内',
-    placeholder: '站内搜索...',
-    url: q => `/search?query=${encodeURIComponent(q)}`
+// [改进方向五]：监听壁纸变化，动态预加载，从而触发渐现动画
+watch(customBackground, (newUrl) => {
+  if (!newUrl) {
+    isBgLoaded.value = true;
+    return;
   }
+  // 每次切换壁纸先隐藏
+  isBgLoaded.value = false; 
+  
+  if (isVideoBg.value) {
+    // 视频由 @canplay 事件触发 isBgLoaded = true，不在这里处理
+  } else {
+    // 图片使用 JavaScript Image 对象预加载
+    const img = new Image();
+    img.src = newUrl;
+    img.onload = () => { isBgLoaded.value = true; };
+    img.onerror = () => { isBgLoaded.value = true; }; // 就算加载失败也显示出来（防一直黑屏）
+  }
+}, { immediate: true });
+
+// [改进方向四]：保存访客专属壁纸
+function saveVisitorTheme() {
+  const url = visitorBgInput.value.trim();
+  if (url) {
+    localStorage.setItem('visitor_bg', url); // 存入浏览器本地存储
+    customBackground.value = url;
+  } else {
+    clearVisitorTheme();
+  }
+  showThemeSettings.value = false;
+}
+
+// [改进方向四]：恢复默认全局壁纸
+function clearVisitorTheme() {
+  localStorage.removeItem('visitor_bg');
+  visitorBgInput.value = '';
+  customBackground.value = globalBackground.value;
+  showThemeSettings.value = false;
+}
+
+const searchEngines = [
+  { name: 'google', label: 'Google', placeholder: 'Google 搜索...', url: q => `https://www.google.com/search?q=${encodeURIComponent(q)}` },
+  { name: 'baidu', label: '百度', placeholder: '百度搜索...', url: q => `https://www.baidu.com/s?wd=${encodeURIComponent(q)}` },
+  { name: 'bing', label: 'Bing', placeholder: 'Bing 搜索...', url: q => `https://www.bing.com/search?q=${encodeURIComponent(q)}` },
+  { name: 'github', label: 'github', placeholder: 'GitHub 搜索...', url: q => `https://github.com/search?q=${encodeURIComponent(q)}&type=repositories` },
+  { name: 'site', label: '站内', placeholder: '站内搜索...', url: q => `/search?query=${encodeURIComponent(q)}` }
 ];
 const selectedEngine = ref(searchEngines[0]);
 
@@ -250,14 +286,22 @@ onMounted(async () => {
   try {
     const configRes = await getConfig();
     if (configRes.data.background) {
-      customBackground.value = configRes.data.background;
+      globalBackground.value = configRes.data.background;
     }
-    // [新增核心]：在首页加载时，顺便把浏览器的标题换成你刚设置的
     if (configRes.data.title) {
       document.title = configRes.data.title; 
     }
   } catch (e) {
     console.error('Failed to load config:', e);
+  }
+
+  // [改进方向四]：初始化时优先读取访客的本地缓存壁纸
+  const localBg = localStorage.getItem('visitor_bg');
+  if (localBg) {
+    customBackground.value = localBg;
+    visitorBgInput.value = localBg; // 回显到输入框
+  } else {
+    customBackground.value = globalBackground.value;
   }
 
   const res = await getMenus();
@@ -293,7 +337,6 @@ async function loadCards() {
 
 async function handleSearch() {
   if (!searchQuery.value.trim()) return;
-
   if (selectedEngine.value.name === 'site') {
     try {
       const res = await searchCards(searchQuery.value.trim());
@@ -329,12 +372,26 @@ function handleLogoError(event) {
   flex-direction: column;
 }
 
+/* [改进方向五]：增加底层深色渐变占位背景，防止白屏刺眼 */
+.bg-placeholder {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(135deg, #1a1c29, #2a2d3e);
+  z-index: -1; /* 垫在最下面 */
+}
+
+/* [改进方向五]：壁纸默认透明度为 0，加载完毕后加入 fade-in 类实现淡入 */
+.bg-image, .bg-video {
+  opacity: 0;
+  transition: opacity 1.2s ease-in-out;
+}
+.fade-in {
+  opacity: 1 !important;
+}
+
 .bg-image {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
+  top: 0; left: 0; width: 100vw; height: 100vh;
   background-image: url('/background.webp');
   background-size: cover;
   background-position: center;
@@ -344,10 +401,7 @@ function handleLogoError(event) {
 
 .bg-video {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
+  top: 0; left: 0; width: 100vw; height: 100vh;
   object-fit: cover;
   z-index: 0;
 }
@@ -355,10 +409,7 @@ function handleLogoError(event) {
 .home-container::before {
   content: '';
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
+  top: 0; left: 0; width: 100vw; height: 100vh;
   background: rgba(0, 0, 0, 0.3);
   z-index: 1;
 }
@@ -371,6 +422,90 @@ function handleLogoError(event) {
   flex-direction: column;
   padding-top: 50px; 
 }
+
+/* [改进方向四]：右上角主题按钮样式 */
+.theme-toggle-btn {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 101;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  width: 45px; height: 45px;
+  display: flex; align-items: center; justify-content: center;
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+.theme-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+  transform: rotate(15deg) scale(1.1);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+}
+
+/* [改进方向四]：主题弹窗独有样式 */
+.theme-modal {
+  width: 420px !important;
+  height: auto !important;
+  min-height: 220px;
+}
+.theme-desc {
+  font-size: 13px;
+  color: #555;
+  margin-bottom: 15px;
+  line-height: 1.5;
+  background: #f0f4f8;
+  padding: 10px;
+  border-radius: 6px;
+  border-left: 3px solid #2566d8;
+}
+.theme-input {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  font-size: 14px;
+  background: #fff;
+  margin-bottom: 20px;
+  box-sizing: border-box;
+}
+.theme-input:focus {
+  outline: none;
+  border-color: #2566d8;
+  box-shadow: 0 0 0 2px rgba(37,102,216,0.1);
+}
+.theme-actions {
+  display: flex;
+  gap: 12px;
+}
+.save-theme-btn {
+  flex: 1;
+  background: #2566d8;
+  color: white;
+  border: none;
+  padding: 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+.save-theme-btn:hover { background: #1a4ba3; }
+.clear-theme-btn {
+  flex: 1;
+  background: #fff;
+  color: #64748b;
+  border: 1px solid #cbd5e1;
+  padding: 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+.clear-theme-btn:hover { background: #f8fafc; color: #ef4444; border-color: #ef4444; }
+
 
 .menu-bar-fixed {
   position: fixed;
@@ -566,7 +701,7 @@ function handleLogoError(event) {
   backdrop-filter: blur(5px);
 }
 .modal-content {
-  background: #8585859c;
+  background: #f8fafc;
   border-radius: 16px;
   width: 55rem;
   height: 30rem;
@@ -581,13 +716,13 @@ function handleLogoError(event) {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 20px;
+  padding: 15px 20px;
   border-bottom: 1px solid #e5e7eb;
-  background: #d3d6d8;
+  background: #fff;
 }
 .modal-header h3 {
   margin: 0;
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 600;
   color: #111827;
 }
@@ -595,18 +730,21 @@ function handleLogoError(event) {
   background: none;
   border: none;
   cursor: pointer;
-  padding: 8px;
+  padding: 6px;
   border-radius: 8px;
   color: #6b7280;
   transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .close-btn:hover {
-  background: #f3f4f6;
-  color: #cf1313;
+  background: #fee2e2;
+  color: #ef4444;
 }
 .modal-body {
   flex: 1;
-  padding: 32px;
+  padding: 24px;
   overflow-y: auto;
 }
 .friend-links-grid {
@@ -621,36 +759,41 @@ function handleLogoError(event) {
   .container {
     width: 95%;
   }
+  .theme-toggle-btn {
+    top: 15px; right: 15px; width: 38px; height: 38px;
+  }
+  .theme-modal {
+    width: 90% !important;
+  }
 }
 .friend-link-card {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 6px;
-  background: #cfd3d661;
-  border-radius: 15px;
+  padding: 10px;
+  background: #fff;
+  border-radius: 12px;
   text-decoration: none;
   color: inherit;
   transition: all 0.2s ease;
-  border: 1px solid #cfd3d661;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.02);
 }
 .friend-link-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
-  background: #ffffff8e;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.08);
+  border-color: #cbd5e1;
 }
 .friend-link-logo {
   width: 48px;
   height: 48px;
   border-radius: 8px;
   overflow: hidden;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: white;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  background: #f8fafc;
 }
 .friend-link-logo img {
   width: 100%;
@@ -663,9 +806,8 @@ function handleLogoError(event) {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #e5e7eb;
-  color: #6b7280;
-  font-size: 18px;
+  color: #64748b;
+  font-size: 20px;
   font-weight: 600;
   border-radius: 8px;
 }
@@ -673,7 +815,7 @@ function handleLogoError(event) {
   margin: 0;
   font-size: 13px;
   font-weight: 500;
-  color: #374151;
+  color: #334155;
   text-align: center;
   line-height: 1.3;
   word-break: break-all;
@@ -777,15 +919,3 @@ function handleLogoError(event) {
   }
   .copyright {
     color: rgba(255, 255, 255, 0.8);
-    font-size: 0.7rem;
-    margin: 0;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-  }
-  .footer-content {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 20px;
-  }
-}
-</style>
