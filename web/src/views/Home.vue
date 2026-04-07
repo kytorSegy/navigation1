@@ -1,3 +1,14 @@
+<!-- =====================================================
+  文件: web/src/views/Home.vue
+  说明: 整体替换此文件
+  改动:
+    1. [移动端] 新增侧边抽屉 Drawer + 汉堡按钮（不占满全屏高度，底部留出空间）
+    2. [移动端] 搜索引擎按钮改为横向可滚动
+    3. [移动端] 弹窗改为底部弹出式
+    4. [移动端] 减少移动端顶部空白
+    5. [动画] 弹窗增加缩放入场动画
+    6. [代码] transition 统一使用 CSS 变量
+===================================================== -->
 <template>
   <div class="home-container">
     
@@ -48,10 +59,10 @@
         </svg>
       </button>
 
-      <!-- 移动端：侧边抽屉 -->
+      <!-- [改动1] 移动端侧边抽屉 —— 不占满全屏，底部留空 -->
       <Transition name="drawer">
         <div v-if="mobileDrawer" class="drawer-overlay" @click="mobileDrawer = false">
-          <div class="drawer-panel" @click.stop>
+          <div class="drawer-content" @click.stop>
             <div class="drawer-header">
               <span>导航分类</span>
               <button @click="mobileDrawer = false" class="drawer-close">
@@ -204,7 +215,7 @@ const leftAds = ref([]);
 const rightAds = ref([]);
 const showFriendLinks = ref(false);
 const friendLinks = ref([]);
-const mobileDrawer = ref(false);
+const mobileDrawer = ref(false);  // 移动端侧边抽屉状态
 
 const globalBackground = ref(''); 
 const customBackground = ref(''); 
@@ -468,7 +479,7 @@ function handleLogoError(event) {
   display: flex; align-items: center; justify-content: center;
   color: white;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all var(--transition-smooth, 0.3s cubic-bezier(0.23, 1, 0.32, 1));
   box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
 .theme-toggle-btn:hover {
@@ -520,7 +531,7 @@ function handleLogoError(event) {
   border-radius: 8px;
   cursor: pointer;
   font-weight: 500;
-  transition: background 0.2s;
+  transition: background var(--transition-fast, 0.2s ease);
 }
 .save-theme-btn:hover { background: #1a4ba3; }
 .clear-theme-btn {
@@ -532,7 +543,7 @@ function handleLogoError(event) {
   border-radius: 8px;
   cursor: pointer;
   font-weight: 500;
-  transition: all 0.2s;
+  transition: all var(--transition-fast, 0.2s ease);
 }
 .clear-theme-btn:hover { background: #f8fafc; color: #ef4444; border-color: #ef4444; }
 
@@ -543,6 +554,8 @@ function handleLogoError(event) {
   width: 100vw;
   z-index: 100;
 }
+
+/* [改动2] 搜索引擎按钮横向可滚动 */
 .search-engine-select {
   display: flex;
   flex-direction: row;
@@ -562,11 +575,11 @@ function handleLogoError(event) {
   border: none;
   background: none;
   color: #ffffff;
-  font-size: .8rem ;
+  font-size: .8rem;
   padding: 2px 10px;
   border-radius: 4px;
   cursor: pointer;
-  transition: color 0.2s, background 0.2s;
+  transition: color var(--transition-fast, 0.2s ease), background var(--transition-fast, 0.2s ease);
   white-space: nowrap;
   flex-shrink: 0;
 }
@@ -619,7 +632,7 @@ function handleLogoError(event) {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background var(--transition-fast, 0.2s ease);
   margin-right: 0.1rem;
 }
 .search-btn:hover {
@@ -717,7 +730,7 @@ function handleLogoError(event) {
   border: none;
   color: rgba(255, 255, 255, 0.8);
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all var(--transition-smooth, 0.3s ease);
   font-size: 14px;
   padding: 0;
 }
@@ -725,31 +738,54 @@ function handleLogoError(event) {
   color: #1976d2;
   transform: translateY(-1px);
 }
+
+/* [改动5] 弹窗增加缩放入场动画 */
 .modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
+  background: var(--overlay-bg, rgba(0, 0, 0, 0.6));
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  backdrop-filter: blur(5px);
+  backdrop-filter: blur(8px);
+  animation: overlayFadeIn 0.2s ease-out;
 }
+
+@keyframes overlayFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 .modal-content {
-  background: #f8fafc;
-  border-radius: 16px;
+  background: var(--modal-bg, rgba(248, 250, 252, 0.95));
+  backdrop-filter: blur(20px);
+  border-radius: var(--modal-radius, 16px);
   width: 55rem;
   height: 30rem;
   max-width: 95vw;
-  max-height: 95vh;
+  max-height: 85vh;
   display: flex;
   flex-direction: column;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   overflow: hidden;
+  animation: modalScaleIn 0.25s cubic-bezier(0.23, 1, 0.32, 1);
 }
+
+@keyframes modalScaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
 .modal-header {
   display: flex;
   align-items: center;
@@ -771,7 +807,7 @@ function handleLogoError(event) {
   padding: 6px;
   border-radius: 8px;
   color: #6b7280;
-  transition: all 0.2s;
+  transition: all var(--transition-fast, 0.2s ease);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -790,20 +826,6 @@ function handleLogoError(event) {
   grid-template-columns: repeat(6, 1fr);
   gap: 12px;
 }
-@media (max-width: 768px) {
-  .friend-links-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-  .container {
-    width: 95%;
-  }
-  .theme-toggle-btn {
-    top: 15px; right: 15px; width: 38px; height: 38px;
-  }
-  .theme-modal {
-    width: 90% !important;
-  }
-}
 .friend-link-card {
   display: flex;
   flex-direction: column;
@@ -813,7 +835,7 @@ function handleLogoError(event) {
   border-radius: 12px;
   text-decoration: none;
   color: inherit;
-  transition: all 0.2s ease;
+  transition: all var(--transition-smooth, 0.3s ease);
   border: 1px solid #e2e8f0;
   box-shadow: 0 2px 4px rgba(0,0,0,0.02);
 }
@@ -867,7 +889,7 @@ function handleLogoError(event) {
 .footer-link {
   color: #ffffffcc;
   text-decoration: none;
-  transition: color 0.2s;
+  transition: color var(--transition-fast, 0.2s ease);
 }
 .footer-link:hover {
   color: #1976d2;
@@ -925,12 +947,23 @@ function handleLogoError(event) {
     height: 80px;
   }
 }
+
+/* ===== 移动端适配 ===== */
 @media (max-width: 768px) {
   .content-overlay {
     padding-top: 20px;
   }
   .home-container {
     padding-top: 0;
+  }
+  .theme-toggle-btn {
+    top: 12px;
+    right: 12px;
+    width: 38px;
+    height: 38px;
+  }
+  .theme-modal {
+    width: 90% !important;
   }
   .content-wrapper {
     gap: 0.5rem;
@@ -947,32 +980,41 @@ function handleLogoError(event) {
     padding-top: 2rem;
   }
   .friend-link-btn {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: none;
-    border: none;
-    color: rgba(255, 255, 255, 0.8);
-    cursor: pointer;
-    transition: all 0.3s ease;
     font-size: 0.7rem;
-    padding: 0;
   }
   .copyright {
-    color: rgba(255, 255, 255, 0.8);
     font-size: 0.7rem;
-    margin: 0;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
   }
   .footer-content {
-    display: flex;
-    align-items: center;
-    justify-content: center;
     gap: 20px;
+  }
+  .container {
+    width: 95%;
+  }
+
+  /* [改动3] 弹窗改为底部弹出式 */
+  .modal-overlay {
+    align-items: flex-end;
+  }
+  .modal-content {
+    width: 100vw;
+    height: auto;
+    max-height: 80vh;
+    border-radius: 16px 16px 0 0;
+    margin-top: auto;
+    animation: modalSlideUp 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+  }
+  .friend-links-grid {
+    grid-template-columns: repeat(3, 1fr);
   }
 }
 
-/* ===== 移动端侧边抽屉 ===== */
+@keyframes modalSlideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+/* ===== [改动1] 移动端侧边抽屉 ===== */
 .desktop-only { display: block; }
 .mobile-only { display: none; }
 
@@ -997,11 +1039,13 @@ function handleLogoError(event) {
   justify-content: center;
   color: white;
   cursor: pointer;
+  transition: background var(--transition-fast, 0.2s ease);
 }
 .mobile-menu-btn:active {
   background: rgba(255, 255, 255, 0.25);
 }
 
+/* 抽屉遮罩 —— 不遮挡底部标签栏 */
 .drawer-overlay {
   position: fixed;
   top: 0;
@@ -1010,21 +1054,23 @@ function handleLogoError(event) {
   bottom: 0;
   background: rgba(0, 0, 0, 0.4);
   z-index: 200;
+  display: flex;
+  align-items: flex-start;
 }
 
-/* 抽屉面板：不占满屏幕，上下左右都留空间，和卡片一样的毛玻璃 */
-.drawer-panel {
-  position: absolute;
-  top: 60px;
-  left: 10px;
-  bottom: 80px;
-  width: 260px;
-  max-width: calc(100vw - 20px);
-  background-color: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border-radius: 15px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+/* 抽屉主体 —— 不占满全屏高度，顶部留 12px，底部留 80px 给标签栏 */
+.drawer-content {
+  width: 280px;
+  max-width: 80vw;
+  max-height: calc(100vh - 92px);
+  margin-top: 12px;
+  margin-left: 12px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -1034,12 +1080,11 @@ function handleLogoError(event) {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 16px;
+  padding: 16px 20px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   color: #fff;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
-  flex-shrink: 0;
 }
 
 .drawer-close {
@@ -1052,6 +1097,7 @@ function handleLogoError(event) {
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: color var(--transition-fast, 0.2s ease);
 }
 .drawer-close:hover { color: #fff; }
 
@@ -1069,14 +1115,14 @@ function handleLogoError(event) {
   display: block;
   width: 100%;
   text-align: left;
-  padding: 11px 16px;
+  padding: 11px 20px;
   background: none;
   border: none;
   color: rgba(255, 255, 255, 0.85);
   font-size: 15px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all var(--transition-fast, 0.2s ease);
   border-left: 3px solid transparent;
 }
 .drawer-menu-item:active,
@@ -1090,13 +1136,13 @@ function handleLogoError(event) {
   display: block;
   width: 100%;
   text-align: left;
-  padding: 9px 16px 9px 32px;
+  padding: 9px 20px 9px 36px;
   background: none;
   border: none;
   color: rgba(255, 255, 255, 0.55);
   font-size: 14px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all var(--transition-fast, 0.2s ease);
   border-left: 3px solid transparent;
 }
 .drawer-sub-item:active,
@@ -1107,23 +1153,24 @@ function handleLogoError(event) {
 }
 
 /* Vue Transition 动画 */
-.drawer-enter-active,
-.drawer-leave-active {
-  transition: opacity 0.25s ease;
-}
+.drawer-enter-active { transition: opacity 0.25s ease; }
+.drawer-leave-active { transition: opacity 0.2s ease; }
 .drawer-enter-from,
-.drawer-leave-to {
+.drawer-leave-to { opacity: 0; }
+.drawer-enter-active .drawer-content {
+  transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1),
+              opacity 0.3s ease;
+}
+.drawer-leave-active .drawer-content {
+  transition: transform 0.2s ease-in,
+              opacity 0.2s ease;
+}
+.drawer-enter-from .drawer-content {
+  transform: translateX(-20px) scale(0.95);
   opacity: 0;
 }
-.drawer-enter-active .drawer-panel {
-  transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1), opacity 0.3s ease;
-}
-.drawer-leave-active .drawer-panel {
-  transition: transform 0.2s ease-in, opacity 0.2s ease;
-}
-.drawer-enter-from .drawer-panel,
-.drawer-leave-to .drawer-panel {
-  transform: translateX(-30px);
+.drawer-leave-to .drawer-content {
+  transform: translateX(-20px) scale(0.95);
   opacity: 0;
 }
 </style>
