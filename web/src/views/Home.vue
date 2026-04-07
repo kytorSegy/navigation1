@@ -9,6 +9,8 @@
       loop
       muted
       playsinline
+      ref="bgVideoRef"
+      @ended="handleVideoEnded"
     ></video>
     
     <div 
@@ -139,6 +141,20 @@ const rightAds = ref([]);
 const showFriendLinks = ref(false);
 const friendLinks = ref([]);
 const customBackground = ref('');
+
+// [新增]：定义一个变量来获取页面上的 video 元素，初始值为 null
+const bgVideoRef = ref(null); 
+
+// [新增]：当视频播放结束时触发的函数，强制让视频回到开头并继续播放
+function handleVideoEnded() {
+  // 检查视频元素是否存在
+  if (bgVideoRef.value) {
+    // 将视频播放进度重置为 0 秒
+    bgVideoRef.value.currentTime = 0;
+    // 强制调用 play() 方法继续播放，并捕获可能出现的错误避免页面卡死
+    bgVideoRef.value.play().catch(err => console.log('自动重新播放失败:', err));
+  }
+}
 
 // 判定当前背景到底是不是视频
 const isVideoBg = computed(() => {
