@@ -2,7 +2,7 @@
   文件: web/src/views/Home.vue
   说明: 整体替换此文件
   改动:
-    1. [移动端] 新增侧边抽屉 Drawer + 汉堡按钮
+    1. [移动端] 新增侧边抽屉 Drawer + 汉堡按钮（不占满全屏高度，底部留出空间）
     2. [移动端] 搜索引擎按钮改为横向可滚动
     3. [移动端] 弹窗改为底部弹出式
     4. [移动端] 减少移动端顶部空白
@@ -42,7 +42,7 @@
         </svg>
       </button>
 
-      <!-- [改动1] 桌面端：保持原有水平菜单 -->
+      <!-- 桌面端：保持原有水平菜单 -->
       <div class="menu-bar-fixed desktop-only">
         <MenuBar 
           :menus="menus" 
@@ -52,14 +52,14 @@
         />
       </div>
 
-      <!-- [改动1] 移动端：汉堡按钮 -->
+      <!-- 移动端：汉堡按钮 -->
       <button class="mobile-menu-btn mobile-only" @click="mobileDrawer = true">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
           <path d="M3 12h18M3 6h18M3 18h18"/>
         </svg>
       </button>
 
-      <!-- [改动1] 移动端：侧边抽屉 -->
+      <!-- [改动1] 移动端侧边抽屉 —— 不占满全屏，底部留空 -->
       <Transition name="drawer">
         <div v-if="mobileDrawer" class="drawer-overlay" @click="mobileDrawer = false">
           <div class="drawer-content" @click.stop>
@@ -215,7 +215,7 @@ const leftAds = ref([]);
 const rightAds = ref([]);
 const showFriendLinks = ref(false);
 const friendLinks = ref([]);
-const mobileDrawer = ref(false);  // [改动1] 移动端侧边抽屉状态
+const mobileDrawer = ref(false);  // 移动端侧边抽屉状态
 
 const globalBackground = ref(''); 
 const customBackground = ref(''); 
@@ -479,7 +479,6 @@ function handleLogoError(event) {
   display: flex; align-items: center; justify-content: center;
   color: white;
   cursor: pointer;
-  /* [改动6] 使用 CSS 变量 */
   transition: all var(--transition-smooth, 0.3s cubic-bezier(0.23, 1, 0.32, 1));
   box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
@@ -951,7 +950,6 @@ function handleLogoError(event) {
 
 /* ===== 移动端适配 ===== */
 @media (max-width: 768px) {
-  /* [改动4] 减少移动端顶部空白 */
   .content-overlay {
     padding-top: 20px;
   }
@@ -1047,35 +1045,48 @@ function handleLogoError(event) {
   background: rgba(255, 255, 255, 0.25);
 }
 
+/* 抽屉遮罩 —— 不遮挡底部标签栏 */
 .drawer-overlay {
   position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(4px);
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
   z-index: 200;
   display: flex;
+  align-items: flex-start;
 }
+
+/* 抽屉主体 —— 不占满全屏高度，顶部留 12px，底部留 80px 给标签栏 */
 .drawer-content {
   width: 280px;
   max-width: 80vw;
-  height: 100vh;
-  background: rgba(20, 22, 35, 0.95);
+  max-height: calc(100vh - 92px);
+  margin-top: 12px;
+  margin-left: 12px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(20px);
-  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
+  overflow: hidden;
 }
+
 .drawer-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 16px 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   color: #fff;
   font-size: 16px;
   font-weight: 600;
 }
+
 .drawer-close {
   background: none;
   border: none;
@@ -1089,22 +1100,25 @@ function handleLogoError(event) {
   transition: color var(--transition-fast, 0.2s ease);
 }
 .drawer-close:hover { color: #fff; }
+
 .drawer-body {
   flex: 1;
-  padding: 12px 0;
+  padding: 8px 0;
   overflow-y: auto;
 }
+
 .drawer-menu-group {
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
+
 .drawer-menu-item {
   display: block;
   width: 100%;
   text-align: left;
-  padding: 12px 20px;
+  padding: 11px 20px;
   background: none;
   border: none;
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(255, 255, 255, 0.85);
   font-size: 15px;
   font-weight: 500;
   cursor: pointer;
@@ -1113,18 +1127,19 @@ function handleLogoError(event) {
 }
 .drawer-menu-item:active,
 .drawer-menu-item.active {
-  background: rgba(57, 157, 255, 0.1);
+  background: rgba(57, 157, 255, 0.15);
   color: #399dff;
   border-left-color: #399dff;
 }
+
 .drawer-sub-item {
   display: block;
   width: 100%;
   text-align: left;
-  padding: 10px 20px 10px 36px;
+  padding: 9px 20px 9px 36px;
   background: none;
   border: none;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.55);
   font-size: 14px;
   cursor: pointer;
   transition: all var(--transition-fast, 0.2s ease);
@@ -1133,7 +1148,7 @@ function handleLogoError(event) {
 .drawer-sub-item:active,
 .drawer-sub-item.active {
   color: #399dff;
-  background: rgba(57, 157, 255, 0.08);
+  background: rgba(57, 157, 255, 0.1);
   border-left-color: #399dff;
 }
 
@@ -1143,13 +1158,19 @@ function handleLogoError(event) {
 .drawer-enter-from,
 .drawer-leave-to { opacity: 0; }
 .drawer-enter-active .drawer-content {
-  transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+  transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1),
+              opacity 0.3s ease;
 }
 .drawer-leave-active .drawer-content {
-  transition: transform 0.2s ease-in;
+  transition: transform 0.2s ease-in,
+              opacity 0.2s ease;
 }
-.drawer-enter-from .drawer-content,
+.drawer-enter-from .drawer-content {
+  transform: translateX(-20px) scale(0.95);
+  opacity: 0;
+}
 .drawer-leave-to .drawer-content {
-  transform: translateX(-100%);
+  transform: translateX(-20px) scale(0.95);
+  opacity: 0;
 }
 </style>
