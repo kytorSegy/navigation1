@@ -4,6 +4,12 @@
       <h2 class="section-title">系统全局设置</h2>
     </div>
     <div class="system-card">
+      
+      <div class="form-group">
+        <label>网站浏览器标题：</label>
+        <input v-model="siteTitle" class="input" placeholder="请输入你的专属导航网站标题" />
+      </div>
+
       <div class="form-group">
         <label>网站动态壁纸 / 背景图链接：</label>
         <input v-model="bgUrl" class="input" placeholder="请输入视频链接 (.mp4/.webm) 或图片链接" />
@@ -14,8 +20,9 @@
           3. <b>清空恢复</b>：如果将这里清空留白，首页将自动恢复为系统默认的星空背景。
         </p>
       </div>
+
       <button class="btn" @click="handleSave" :disabled="loading">
-        {{ loading ? '保存中...' : '保存壁纸设置' }}
+        {{ loading ? '保存中...' : '保存全局设置' }}
       </button>
       <p v-if="message" :class="['message', messageType]">{{ message }}</p>
     </div>
@@ -26,6 +33,7 @@
 import { ref, onMounted } from 'vue';
 import { getConfig, updateConfig } from '../../api';
 
+const siteTitle = ref(''); // 新增：用来绑定标题数据
 const bgUrl = ref('');
 const loading = ref(false);
 const message = ref('');
@@ -34,6 +42,10 @@ const messageType = ref('success');
 onMounted(async () => {
   try {
     const res = await getConfig();
+    
+    // 给标题框赋值
+    siteTitle.value = res.data.title || '';
+
     // 把带有代理前缀的URL还原成肉眼能看懂的真实URL
     let url = res.data.background || '';
     if (url.includes('/api/background?url=')) {
@@ -49,9 +61,18 @@ async function handleSave() {
   loading.value = true;
   message.value = '';
   try {
-    await updateConfig({ background: bgUrl.value });
-    message.value = '壁纸设置保存成功！快去首页刷新看看效果吧！';
+    // 核心：把标题（title）和壁纸（background）一起提交给后端保存
+    await updateConfig({ 
+      title: siteTitle.value,
+      background: bgUrl.value 
+    });
+    message.value = '设置保存成功！快去首页刷新看看效果吧！';
     messageType.value = 'success';
+    
+    // 如果你在后台保存了标题，让当前后台页面的标题也跟着变一下
+    if (siteTitle.value) {
+      document.title = siteTitle.value;
+    }
   } catch (err) {
     message.value = '保存失败：' + (err.response?.data?.error || err.message);
     messageType.value = 'error';
@@ -85,7 +106,7 @@ async function handleSave() {
   max-width: 800px;
 }
 .form-group {
-  margin-bottom: 20px;
+  margin-bottom: 24px;
 }
 .form-group label {
   display: block;
