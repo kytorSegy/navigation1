@@ -28,26 +28,26 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # --- [关键修复] 第 1 步：动态生成推送标签，并安全地判断是否配置了密钥 ---
+      # --- [关键修复] 第 1 步：动态生成推送标签，并强制转换为小写 ---
       - name: Check secrets and set tags
         id: docker_meta
         run: |
-          # 默认必定推送到 GitHub 自己的镜像库 (ghcr.io)
-          TAGS="ghcr.io/${{ github.repository }}:latest"
+          # 核心修复点：将自带大写的 github.repository 强制转换为全小写字母
+          REPO_LOWERCASE=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
           
-          # 在 run 脚本中读取 secrets 是被允许的安全行为
-          # 我们在这里判断 Docker Hub 的账号和密码是否为空
+          # 默认必定推送到 GitHub 自己的镜像库 (ghcr.io)，现在使用的是全小写的名称
+          TAGS="ghcr.io/$REPO_LOWERCASE:latest"
+          
+          # 判断 Docker Hub 的账号和密码是否为空
           if [ -n "${{ secrets.DOCKERHUB_USERNAME }}" ] && [ -n "${{ secrets.DOCKERHUB_TOKEN }}" ]; then
             echo "✅ 检测到 Docker Hub 配置，准备同时推送到 Docker Hub。"
             # 追加 Docker Hub 的推送地址
             TAGS="$TAGS,docker.io/${{ secrets.DOCKERHUB_USERNAME }}/navtest:latest"
             
-            # 向 GitHub Actions 输出一个名为 push_docker，值为 true 的普通变量
             echo "push_docker=true" >> $GITHUB_OUTPUT
           else
             echo "⚠️ 未检测到 Docker Hub 配置，将只推送到 GitHub 镜像库。"
             
-            # 向 GitHub Actions 输出一个名为 push_docker，值为 false 的普通变量
             echo "push_docker=false" >> $GITHUB_OUTPUT
           fi
           
@@ -62,8 +62,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # --- [关键修复] 第 3 步：登录 Docker Hub (选做项) ---
-      # 这里不再直接读取 secrets，而是安全地读取第 1 步输出的 push_docker 变量
+      # --- 第 3 步：登录 Docker Hub (选做项) ---
       - name: Log in to Docker Hub
         if: steps.docker_meta.outputs.push_docker == 'true'
         uses: docker/login-action@v3
@@ -80,7 +79,7 @@ jobs:
         with:
           context: .
           push: true
-          # 这里的 tags 会自动应用我们在第 1 步计算好的地址
+          # 这里的 tags 会自动应用我们在第 1 步计算好的、全小写的地址
           tags: ${{ steps.docker_meta.outputs.tags }}
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
