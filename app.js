@@ -3,8 +3,8 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const config = require('./config');
-const db = require('./db'); // [新增] 引入数据库模块，以便读取设置
-const authMiddleware = require('./routes/authMiddleware'); // [新增] 鉴权中间件
+const db = require('./db');
+const authMiddleware = require('./routes/authMiddleware');
 
 const menuRoutes = require('./routes/menu');
 const cardRoutes = require('./routes/card');
@@ -28,13 +28,22 @@ app.use(compression());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use(express.static(path.join(__dirname, 'web/dist'), { index: false }));
 
+// =================================================================
+// [修改]：在加载首页时，从数据库读取你设置的标题，渲染到 index.html
+// =================================================================
 const sendIndexHtml = (res) => {
   const indexPath = path.join(__dirname, 'web/dist', 'index.html');
   fs.readFile(indexPath, 'utf8', (err, htmlData) => {
     if (err) return res.status(500).send('Server Error');
-    const siteTitle = (config.app && config.app.title) || process.env.SITE_TITLE || '我的导航';
-    const renderedHtml = htmlData.replace('__SITE_TITLE__', siteTitle);
-    res.send(renderedHtml);
+    
+    // 从 settings 表中查找 title
+    db.get("SELECT value FROM settings WHERE key='title'", (dbErr, row) => {
+      // 如果数据库有标题就用数据库的，没有就用 config 默认的
+      const siteTitle = (row && row.value) ? row.value : ((config.app && config.app.title) || process.env.SITE_TITLE || '我的导航');
+      // 替换 HTML 中的占位符
+      const renderedHtml = htmlData.replace('__SITE_TITLE__', siteTitle);
+      res.send(renderedHtml);
+    });
   });
 };
 
@@ -55,11 +64,8 @@ app.use('/api/ads', adRoutes);
 app.use('/api/friends', friendRoutes);
 app.use('/api/users', userRoutes);
 
-// =================================================================
-// [修改]：从前端传来的 url 参数中直接获取地址进行下载缓存
-// =================================================================
 app.get('/api/background', (req, res) => {
-  const bgUrl = req.query.url; // 新逻辑：从问号后的参数获取地址
+  const bgUrl = req.query.url; 
 
   if (!bgUrl || !bgUrl.startsWith('http')) {
     return res.status(404).send('未配置网络壁纸链接或链接无效');
@@ -92,7 +98,7 @@ app.get('/api/background', (req, res) => {
         res.redirect(`/uploads/${fileName}`);
       });
     } else {
-      res.redirect(bgUrl); // 失败兜底，直接返回原链接
+      res.redirect(bgUrl); 
     }
   }).on('error', () => {
     res.redirect(bgUrl);
@@ -100,52 +106,74 @@ app.get('/api/background', (req, res) => {
 });
 
 // =================================================================
-// [修改]：给前端返回配置信息（优先从数据库读取）
+// [修改]：给前端返回配置信息（同时返回标题和壁纸）
 // =================================================================
 app.get('/api/config', (req, res) => {
-  db.get("SELECT value FROM settings WHERE key = 'background'", (err, row) => {
+  db.all("SELECT key, value FROM settings WHERE key IN ('background', 'title')", (err, rows) => {
     let bgUrl = '';
-    if (row && row.value) {
-      bgUrl = row.value;
-    } else {
-      bgUrl = (config.app && config.app.background) || process.env.background || process.env.BACKGROUND || '';
+    let titleStr = '';
+    
+    // 遍历数据库结果，分别赋值
+    if (rows) {
+      rows.forEach(r => {
+        if (r.key === 'background') bgUrl = r.value;
+        if (r.key === 'title') titleStr = r.value;
+      });
     }
 
-    // 识别是不是动态视频文件
+    if (!bgUrl) bgUrl = (config.app && config.app.background) || process.env.BACKGROUND || '';
+    if (!titleStr) titleStr = (config.app && config.app.title) || process.env.SITE_TITLE || '我的导航';
+
     const isVideo = bgUrl.toLowerCase().match(/\.(mp4|webm|ogg)$/);
 
-    // 如果是图片，并且以http开头，我们在它前面加上代理接口的地址缓存它
-    // 如果是动态视频，坚决不走代理缓存（因为视频太大了代理会卡死），让前端直接去原链接拉取
     if (!isVideo && bgUrl && bgUrl.startsWith('http')) {
       bgUrl = '/api/background?url=' + encodeURIComponent(bgUrl); 
     }
 
     res.json({
-      title: (config.app && config.app.title) || process.env.SITE_TITLE || '我的导航',
+      title: titleStr,
       background: bgUrl
     });
   });
 });
 
 // =================================================================
-// [新增]：管理员在后台保存全局配置
+// [修改]：升级配置保存接口，支持一次性保存多个设置项
 // =================================================================
-app.post('/api/config/background', authMiddleware, (req, res) => {
-  const { background } = req.body;
-  // 检查表里是否有背景记录，有就更新，没有就插入
-  db.get("SELECT * FROM settings WHERE key='background'", (err, row) => {
-    if (row) {
-      db.run("UPDATE settings SET value=? WHERE key='background'", [background || ''], (updateErr) => {
-        if (updateErr) return res.status(500).json({ error: updateErr.message });
-        res.json({ success: true });
-      });
-    } else {
-      db.run("INSERT INTO settings (key, value) VALUES ('background', ?)", [background || ''], (insertErr) => {
-        if (insertErr) return res.status(500).json({ error: insertErr.message });
-        res.json({ success: true });
-      });
-    }
+app.post('/api/config/settings', authMiddleware, (req, res) => {
+  // 从前端接收 title 和 background
+  const { title, background } = req.body;
+  const updates = [];
+  
+  // 将前端传来的有效值放入更新队列
+  if (title !== undefined) updates.push({ key: 'title', value: title });
+  if (background !== undefined) updates.push({ key: 'background', value: background });
+
+  if (updates.length === 0) return res.json({ success: true });
+
+  let completed = 0;
+  let hasError = false;
+
+  // 循环更新或插入每一项配置
+  updates.forEach(item => {
+    db.get("SELECT * FROM settings WHERE key=?", [item.key], (err, row) => {
+      if (row) {
+        db.run("UPDATE settings SET value=? WHERE key=?", [item.value || '', item.key], checkDone);
+      } else {
+        db.run("INSERT INTO settings (key, value) VALUES (?, ?)", [item.key, item.value || ''], checkDone);
+      }
+    });
   });
+
+  function checkDone(err) {
+    if (err) hasError = true;
+    completed++;
+    // 当所有项目处理完毕后返回结果
+    if (completed === updates.length) {
+      if (hasError) return res.status(500).json({ error: '部分设置保存失败' });
+      res.json({ success: true });
+    }
+  }
 });
 
 app.listen(PORT, '0.0.0.0', () => {
