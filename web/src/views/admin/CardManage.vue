@@ -43,6 +43,10 @@
           handle=".drag-handle"
           ghost-class="ghost"
           animation="200"
+          :force-fallback="true" 
+          :scroll="true"
+          :scroll-sensitivity="100"
+          :scroll-speed="20"
           @end="onDragEnd"
         >
           <template #item="{ element }">
@@ -73,18 +77,15 @@
 </template>
 
 <script setup>
-// 引入 Vue 相关函数
 import { ref, onMounted, watch, computed } from 'vue';
-// 引入刚安装的 draggable 库
 import draggable from 'vuedraggable';
-// 引入你的 API 接口方法，一定要确保 updateCardOrder 被引入进来
 import { 
   getMenus, 
   getCards, 
   addCard as apiAddCard, 
   updateCard as apiUpdateCard, 
   deleteCard as apiDeleteCard,
-  updateCardOrder // 这是我们刚才在 api.js 中新增的方法
+  updateCardOrder
 } from '../../api';
 
 const menus = ref([]);
@@ -154,7 +155,7 @@ async function updateCard(card) {
     url: card.url,
     logo_url: card.logo_url,
     desc: card.desc,
-    order: card.order // 保留原有单个更新接口兼容性
+    order: card.order 
   });
   loadCards();
 }
@@ -164,19 +165,12 @@ async function deleteCard(id) {
   loadCards();
 }
 
-// ✅ [核心新增] 拖拽动作结束后的处理函数
 async function onDragEnd() {
-  // 拖拽结束后，cards 数组已经是新的排序了
-  // 我们将此时数组中所有元素的 id 提取出来，组成一个新的数组
-  // 比如原本 id 为 [1, 2, 3]，拖拽后变成了 [2, 1, 3]
   const sortedIds = cards.value.map(card => card.id);
   
   try {
-    // 调用接口，将新顺序保存到数据库
     await updateCardOrder({ sortedIds });
     console.log('排序已自动保存');
-    // 如果想要确保数据绝对同步，可以取消下面这行的注释重新请求数据
-    // loadCards(); 
   } catch (error) {
     console.error('排序保存失败', error);
     alert('排序保存失败，请刷新页面重试');
@@ -186,7 +180,6 @@ async function onDragEnd() {
 
 <style scoped>
 /* =========== 拖拽相关 CSS =========== */
-/* 拖动手柄的样式，鼠标放上去会变成移动十字图标 */
 .drag-handle {
   cursor: grab;
   text-align: center;
@@ -195,10 +188,16 @@ async function onDragEnd() {
 .drag-handle:active {
   cursor: grabbing;
 }
-/* 正在被拖动的元素的半透明影子效果 */
 .ghost {
   opacity: 0.4;
   background-color: #f3f4f6;
+}
+/* 💡 [核心修改区] 防止在拖拽时意外选中表格里的文字 */
+.card-table {
+  width: 100%;
+  border-collapse: collapse;
+  padding: 24px;
+  user-select: none; 
 }
 
 /* =========== 原有 CSS 完全保留 =========== */
@@ -249,12 +248,6 @@ async function onDragEnd() {
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
   overflow: hidden;
   width: 100%;
-}
-
-.card-table {
-  width: 100%;
-  border-collapse: collapse;
-  padding: 24px;
 }
 
 .card-table th,
