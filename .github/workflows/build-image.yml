@@ -28,38 +28,59 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # --- [保留原有] 第 1 步：登录 GitHub 的镜像库 ---
+      # --- [新增智能检测] 第 1 步：动态生成推送标签 (Tags) ---
+      # 这一步会像个小管家一样，先看看你有没有配置 Docker Hub 的密钥
+      - name: Check secrets and set tags
+        id: docker_meta # 给这一步取个ID，方便后面调用它的结果
+        run: |
+          # 默认必定推送到 GitHub 自己的镜像库 (ghcr.io)
+          TAGS="ghcr.io/${{ github.repository }}:latest"
+          
+          # 判断条件：如果 Docker Hub 的账号和密码都不为空
+          if [ -n "${{ secrets.DOCKERHUB_USERNAME }}" ] && [ -n "${{ secrets.DOCKERHUB_TOKEN }}" ]; then
+            echo "✅ 检测到 Docker Hub 配置，准备同时推送到 Docker Hub。"
+            # 在原有标签基础上，追加一个 Docker Hub 的标签 (逗号分隔)
+            TAGS="$TAGS,docker.io/${{ secrets.DOCKERHUB_USERNAME }}/navtest:latest"
+          else
+            echo "⚠️ 未检测到 Docker Hub 配置，将只推送到 GitHub 镜像库。"
+          fi
+          
+          # 将最终决定好的标签存入环境变量，传给后面的打包步骤
+          echo "tags=$TAGS" >> $GITHUB_OUTPUT
+
+      # --- 第 2 步：登录 GitHub 的镜像库 (必做项) ---
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
+          # GITHUB_TOKEN 是 GitHub 自动提供的，不需要你手动配置
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # --- [新增功能] 第 2 步：通过变量登录 Docker Hub ---
+      # --- 第 3 步：登录 Docker Hub (选做项) ---
       - name: Log in to Docker Hub
+        # [核心修改] 这里加上了 if 判断：只有当密钥存在时，才执行这个登录动作！
+        if: ${{ secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}
         uses: docker/login-action@v3
         with:
-          # 这里的变量需要在 GitHub 仓库的 Settings -> Secrets and variables -> Actions 中提前设置好
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # --- 第 3 步：打包并同时推送到两个地方 ---
+      # --- 第 4 步：执行打包并推送 ---
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
-          # [核心修改] 在 tags 这里写上两行，它就会自动把同一个镜像推送到这两个仓库
-          tags: |
-            ghcr.io/${{ github.repository }}:latest
-            docker.io/${{ secrets.DOCKERHUB_USERNAME }}/navtest:latest
+          # [核心修改] 这里的 tags 不再写死，而是读取第 1 步里智能判断后生成的标签
+          tags: ${{ steps.docker_meta.outputs.tags }}
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.description=nav-item
             org.opencontainers.image.licenses=MIT
+          # 开启缓存，能让后续的打包速度变快
           cache-from: type=gha
           cache-to: type=gha,mode=max
