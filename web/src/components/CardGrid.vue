@@ -1,3 +1,15 @@
+<!-- =====================================================
+  文件: web/src/components/CardGrid.vue
+  说明: 整体替换此文件
+  改动:
+    1. [动画] triggerAnimation 统一为 staggerFadeUp，移除 7 种随机动画
+    2. [动画] getCardStyle 简化为统一交错延迟
+    3. [动画] hover 效果增强 translateY(-4px) + scale(1.02)
+    4. [动画] CSS 从 ~150 行精简到 ~25 行
+    5. [代码] getLogo 修复 localhost:3000 硬编码 Bug
+    6. [代码] getLogo 改用 Google Favicon API
+    7. [代码] 卡片圆角使用 CSS 变量
+===================================================== -->
 <template>
   <div class="container card-grid" :class="animationClass">
     <div v-for="(card, index) in cards" :key="card.id" 
@@ -18,16 +30,13 @@ const props = defineProps({ cards: Array });
 
 // 动画状态
 const animationClass = ref('');
-const animationType = ref('slideUp'); // 'slideUp' 或 'radial'
+const animationType = ref('staggerFadeUp');
 
 // 监听 cards 变化，触发动画
 watch(() => props.cards, (newCards, oldCards) => {
-  // 如果是新的卡片数据或者从有数据变成其他数据
   if (newCards && newCards.length > 0) {
-    // 如果是首次加载或者数据发生了变化
     const isDataChanged = !oldCards || oldCards.length === 0 || JSON.stringify(newCards) !== JSON.stringify(oldCards);
     if (isDataChanged) {
-      // 延迟一下确保DOM更新完成
       nextTick(() => {
         triggerAnimation();
       });
@@ -35,97 +44,33 @@ watch(() => props.cards, (newCards, oldCards) => {
   }
 }, { deep: true, immediate: false });
 
-// 触发动画
+// [改动1] 统一使用交错淡入动画，移除随机选择
 function triggerAnimation() {
-  // 随机选择动画类型，替换bounceIn为convergeIn
-  const animations = ['slideUp', 'radial', 'fadeIn', 'slideLeft', 'slideRight', 'convergeIn', 'flipIn'];
-  const randomIndex = Math.floor(Math.random() * animations.length);
-  animationType.value = animations[randomIndex];
-  animationClass.value = `animate-${animationType.value}`;
-  
-  // 动画结束后清除类名
+  animationType.value = 'staggerFadeUp';
+  animationClass.value = 'animate-staggerFadeUp';
   setTimeout(() => {
     animationClass.value = '';
-  }, 1200);
+  }, 800);
 }
 
-// 获取卡片样式（用于延迟动画）
+// [改动2] 简化延迟计算：统一交错 30ms，最大 300ms
 function getCardStyle(index) {
   if (!animationClass.value) return {};
-  
-  // 在移动设备上不使用延迟动画
   const isMobile = window.innerWidth <= 480;
   if (isMobile) {
-    return {
-      animationDelay: '0s'
-    };
+    return { animationDelay: '0s' };
   }
-  
-  if (animationType.value === 'slideUp') {
-    // 从下往上：按索引顺序延迟
-    return {
-      animationDelay: `${index * 0.05}s`
-    };
-  } else if (animationType.value === 'radial') {
-    // 从中心扩散：根据距离中心的位置计算延迟
-    const cols = window.innerWidth <= 768 ? 3 : (window.innerWidth <= 1200 ? 4 : 6);
-    const row = Math.floor(index / cols);
-    const col = index % cols;
-    const centerCol = Math.floor(cols / 2);
-    const distance = Math.abs(col - centerCol) + row;
-    return {
-      animationDelay: `${distance * 0.08}s`
-    };
-  } else if (animationType.value === 'fadeIn') {
-    // 淡入动画：随机延迟
-    return {
-      animationDelay: `${Math.random() * 0.5}s`
-    };
-  } else if (animationType.value === 'slideLeft') {
-    // 从左往右：按行延迟
-    const cols = window.innerWidth <= 768 ? 3 : (window.innerWidth <= 1200 ? 4 : 6);
-    const row = Math.floor(index / cols);
-    return {
-      animationDelay: `${row * 0.1}s`
-    };
-  } else if (animationType.value === 'slideRight') {
-    // 从右往左：按行延迟（反向）
-    const cols = window.innerWidth <= 768 ? 3 : (window.innerWidth <= 1200 ? 4 : 6);
-    const row = Math.floor(index / cols);
-    const col = index % cols;
-    return {
-      animationDelay: `${(row + (cols - col - 1) * 0.02) * 0.08}s`
-    };
-  } else if (animationType.value === 'convergeIn') {
-    // 从两边往中间靠拢：根据列的位置计算延迟
-    const cols = window.innerWidth <= 768 ? 3 : (window.innerWidth <= 1200 ? 4 : 6);
-    const col = index % cols;
-    const centerCol = Math.floor(cols / 2);
-    const distanceFromCenter = Math.abs(col - centerCol);
-    // 边缘的元素先出现，中间的最后出现
-    return {
-      animationDelay: `${(cols - distanceFromCenter - 1) * 0.08}s`
-    };
-  } else if (animationType.value === 'flipIn') {
-    // 翻转入场：按对角线延迟
-    const cols = window.innerWidth <= 768 ? 3 : (window.innerWidth <= 1200 ? 4 : 6);
-    const row = Math.floor(index / cols);
-    const col = index % cols;
-    return {
-      animationDelay: `${(row + col) * 0.06}s`
-    };
-  }
-  
-  return {};
+  const delay = Math.min(index * 0.03, 0.3);
+  return { animationDelay: `${delay}s` };
 }
 
+// [改动5+6] 修复 localhost 硬编码 + 改用 Google Favicon API
 function getLogo(card) {
-  if (card.custom_logo_path) return 'http://localhost:3000/uploads/' + card.custom_logo_path;
+  if (card.custom_logo_path) return '/uploads/' + card.custom_logo_path;
   if (card.logo_url) return card.logo_url;
-  // 默认 favicon
   try {
     const url = new URL(card.url);
-    return url.origin + '/favicon.ico';
+    return 'https://www.google.com/s2/favicons?domain=' + url.hostname + '&sz=64';
   } catch {
     return '/default-favicon.png';
   }
@@ -174,12 +119,17 @@ function truncate(str) {
     grid-template-columns: repeat(3, 1fr);
   }
 }
+
+/* [改动7] 使用 CSS 变量 */
 .link-item {
-  background-color: rgba(255, 255, 255, 0.15);
-  border-radius: 15px;
+  background-color: var(--card-bg, rgba(255, 255, 255, 0.15));
+  border-radius: var(--card-radius, 12px);
   padding: 0;
-  transition: all 0.2s;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  /* [改动3] 增强 transition */
+  transition: transform 0.25s cubic-bezier(0.23, 1, 0.32, 1),
+              box-shadow 0.25s ease,
+              background-color 0.25s ease;
+  box-shadow: var(--card-shadow, 0 1px 3px rgba(0, 0, 0, 0.1));
   text-align: center;
   min-height: 85px;
   height: 85px;
@@ -188,13 +138,16 @@ function truncate(str) {
   justify-content: center;
   align-items: center;
 }
+
+/* [改动3] 增强 hover 效果 */
 .link-item:hover {
-  background-color: rgba(255, 255, 255, 0.3);
-  transform: translateY(-2px);
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+  background-color: var(--card-bg-hover, rgba(255, 255, 255, 0.3));
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: var(--card-shadow-hover, 0 8px 25px rgba(0, 0, 0, 0.2)),
+              0 0 0 1px rgba(255, 255, 255, 0.1);
 }
+
 .link-item a {
-  /* margin-top: 8px; */
   text-decoration: none;
   color: #ffffff;
   font-weight: 500;
@@ -230,18 +183,17 @@ function truncate(str) {
   min-height: 1.5em;
 }
 
-/* 动画样式 */
-/* 从下往上滑入动画 */
-.animate-slideUp .link-item {
-  animation: slideUpIn 0.6s ease-out forwards;
+/* [改动4] 统一的交错淡入动画 —— 替代原来 7 种 ~150 行的动画 */
+.animate-staggerFadeUp .link-item {
+  animation: staggerFadeUp 0.4s cubic-bezier(0.23, 1, 0.32, 1) forwards;
   opacity: 0;
-  transform: translateY(30px);
+  transform: translateY(16px);
 }
 
-@keyframes slideUpIn {
+@keyframes staggerFadeUp {
   0% {
     opacity: 0;
-    transform: translateY(30px);
+    transform: translateY(16px);
   }
   100% {
     opacity: 1;
@@ -249,194 +201,15 @@ function truncate(str) {
   }
 }
 
-/* 从中心扩散动画 */
-.animate-radial .link-item {
-  animation: radialIn 0.5s ease-out forwards;
-  opacity: 0;
-  transform: scale(0.3);
-}
-
-@keyframes radialIn {
-  0% {
-    opacity: 0;
-    transform: scale(0.3);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1.1);
-  }
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-/* 淡入动画 */
-.animate-fadeIn .link-item {
-  animation: fadeIn 0.6s ease-out forwards;
-  opacity: 0;
-}
-
-@keyframes fadeIn {
-  0% {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* 从左滑入动画 */
-.animate-slideLeft .link-item {
-  animation: slideLeftIn 0.6s ease-out forwards;
-  opacity: 0;
-  transform: translateX(-50px);
-}
-
-@keyframes slideLeftIn {
-  0% {
-    opacity: 0;
-    transform: translateX(-50px);
-  }
-  100% {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-/* 从右滑入动画 */
-.animate-slideRight .link-item {
-  animation: slideRightIn 0.6s ease-out forwards;
-  opacity: 0;
-  transform: translateX(50px);
-}
-
-@keyframes slideRightIn {
-  0% {
-    opacity: 0;
-    transform: translateX(50px);
-  }
-  100% {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-/* 从两边往中间靠拢动画 */
-.animate-convergeIn .link-item {
-  animation: convergeIn 0.7s ease-out forwards;
-  opacity: 0;
-}
-
-.animate-convergeIn .link-item:nth-child(6n+1),
-.animate-convergeIn .link-item:nth-child(6n+6) {
-  /* 最边缘的列（第1列和第6列） */
-  transform: translateX(-80px);
-}
-
-.animate-convergeIn .link-item:nth-child(6n+2),
-.animate-convergeIn .link-item:nth-child(6n+5) {
-  /* 次边缘的列（第2列和第5列） */
-  transform: translateX(-40px);
-}
-
-.animate-convergeIn .link-item:nth-child(6n+3),
-.animate-convergeIn .link-item:nth-child(6n+4) {
-  /* 中间的列（第3列和第4列） */
-  transform: translateY(-30px);
-}
-
-/* 在中等屏幕上（4列布局） */
-@media (max-width: 1200px) and (min-width: 769px) {
-  .animate-convergeIn .link-item:nth-child(4n+1),
-  .animate-convergeIn .link-item:nth-child(4n+4) {
-    transform: translateX(-60px);
-  }
-  
-  .animate-convergeIn .link-item:nth-child(4n+2),
-  .animate-convergeIn .link-item:nth-child(4n+3) {
-    transform: translateY(-30px);
-  }
-}
-
-/* 在小屏幕上（3列布局） */
-@media (max-width: 768px) {
-  .animate-convergeIn .link-item:nth-child(3n+1),
-  .animate-convergeIn .link-item:nth-child(3n+3) {
-    transform: translateX(-50px);
-  }
-  
-  .animate-convergeIn .link-item:nth-child(3n+2) {
-    transform: translateY(-30px);
-  }
-}
-
-@keyframes convergeIn {
-  0% {
-    opacity: 0;
-  }
-  100% {
-    opacity: 1;
-    transform: translate(0, 0);
-  }
-}
-
-/* 翻转入场动画 */
-.animate-flipIn .link-item {
-  animation: flipIn 0.7s ease-out forwards;
-  opacity: 0;
-  transform: rotateY(-90deg);
-}
-
-@keyframes flipIn {
-  0% {
-    opacity: 0;
-    transform: rotateY(-90deg);
-  }
-  50% {
-    opacity: 1;
-    transform: rotateY(-45deg);
-  }
-  100% {
-    opacity: 1;
-    transform: rotateY(0deg);
-  }
-}
-
-/* 优化过渡效果 */
-.container:not(.animate-slideUp):not(.animate-radial):not(.animate-fadeIn) .link-item {
+/* 无动画时确保可见 */
+.container:not(.animate-staggerFadeUp) .link-item {
   opacity: 1;
-  transform: translateY(0) scale(1);
+  transform: none;
 }
 
-/* 响应式动画调整 */
-@media (max-width: 768px) {
-  .animate-slideUp .link-item {
-    animation-duration: 0.4s;
-  }
-  
-  .animate-radial .link-item {
-    animation-duration: 0.4s;
-  }
-}
-
-/* 减少动画延迟在移动设备上 */
-@media (max-width: 480px) {
-  .animate-slideUp .link-item {
-    animation-delay: 0s !important;
-  }
-  
-  .animate-radial .link-item {
-    animation-delay: 0s !important;
-  }
-}
-
-/* 为移动设备提供更快的动画 */
+/* 尊重用户的减少动画偏好 */
 @media (prefers-reduced-motion: reduce) {
-  .animate-slideUp .link-item,
-  .animate-radial .link-item {
+  .animate-staggerFadeUp .link-item {
     animation: none;
     opacity: 1;
     transform: none;
