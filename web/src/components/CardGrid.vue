@@ -45,22 +45,23 @@ watch(() => props.cards, (newCards, oldCards) => {
 }, { deep: true, immediate: false });
 
 // [改动1] 统一使用交错淡入动画，移除随机选择
+  //设定动画状态重置时间为15秒
 function triggerAnimation() {
   animationType.value = 'staggerFadeUp';
   animationClass.value = 'animate-staggerFadeUp';
   setTimeout(() => {
     animationClass.value = '';
-  }, 1500);
+  }, 15000);
 }
 
-// [改动2] 简化延迟计算：统一交错 30ms，最大 300ms
+// [改动2] 简化延迟计算：统一交错 30ms，最大 300ms，卡片间的出场间隔0.03倍，最大延迟0.3秒
 function getCardStyle(index) {
   if (!animationClass.value) return {};
   const isMobile = window.innerWidth <= 480;
   if (isMobile) {
     return { animationDelay: '0s' };
   }
-  const delay = Math.min(index * 0.08, 0.8);
+  const delay = Math.min(index * 0.03, 0.3);
   return { animationDelay: `${delay}s` };
 }
 
@@ -184,8 +185,9 @@ function truncate(str) {
 }
 
 /* [改动4] 统一的交错淡入动画 —— 替代原来 7 种 ~150 行的动画 */
+  /*卡片升起和变清晰的过程变0.5秒*/
 .animate-staggerFadeUp .link-item {
-  animation: staggerFadeUp 0.8s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+  animation: staggerFadeUp 0.5s cubic-bezier(0.23, 1, 0.32, 1) forwards;
   opacity: 0;
   transform: translateY(16px);
 }
