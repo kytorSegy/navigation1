@@ -236,6 +236,10 @@ onMounted(async () => {
     if (configRes.data.background) {
       customBackground.value = configRes.data.background;
     }
+    // [新增核心]：在首页加载时，顺便把浏览器的标题换成你刚设置的
+    if (configRes.data.title) {
+      document.title = configRes.data.title; 
+    }
   } catch (e) {
     console.error('Failed to load config:', e);
   }
@@ -302,52 +306,47 @@ function handleLogoError(event) {
 </script>
 
 <style scoped>
-/* 核心背景布局，确保视频铺满并且在底层 */
 .home-container {
-  min-height: 95vh;
+  min-height: 100vh;
   position: relative;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
 }
 
 .bg-image {
-  position: absolute;
+  position: fixed;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
+  width: 100vw;
+  height: 100vh;
   background-image: url('/background.webp');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  background-attachment: fixed;
   z-index: 0;
 }
 
 .bg-video {
-  position: absolute;
+  position: fixed;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
+  width: 100vw;
+  height: 100vh;
   object-fit: cover;
   z-index: 0;
 }
 
-/* 一层黑色的透明遮罩，保证文字清晰 */
 .home-container::before {
   content: '';
-  position: absolute;
+  position: fixed;
   top: 0;
   left: 0;
-  right: 0;
-  bottom: 0;
+  width: 100vw;
+  height: 100vh;
   background: rgba(0, 0, 0, 0.3);
   z-index: 1;
 }
 
-/* 包含菜单、搜索、卡片的图层，确保在视频上方 */
 .content-overlay {
   position: relative;
   z-index: 2;
@@ -357,7 +356,6 @@ function handleLogoError(event) {
   padding-top: 50px; 
 }
 
-/* ================ 下方原有代码不变 ================ */
 .menu-bar-fixed {
   position: fixed;
   top: .6rem;
