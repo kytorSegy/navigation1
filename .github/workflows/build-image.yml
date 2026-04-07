@@ -10,7 +10,7 @@ on:
       - 'db.js'
       - 'web/**'
       - 'routes/**'
-      # [新增监听] 确保修改脚本也能触发打包
+      # 确保修改脚本也能触发打包
       - '*.sh'          
       - 'package.json'
   pull_request:
@@ -28,7 +28,39 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # --- [保留原有] 第 1 步：登录 GitHub 的镜像库 ---
+      # --- 第 1 步：动态生成推送标签，自动截取仓库名 ---
+      - name: Check secrets and set tags
+        id: docker_meta
+        run: |
+          # 1. 转换完整的 [用户名/仓库名] 为小写 (用于 GitHub 镜像库)
+          REPO_LOWERCASE=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          
+          # 2. [核心新增] 精准提取纯粹的 [仓库名] 并转为小写 (用于 Docker Hub)
+          # 使用 cut 命令以 "/" 为分隔符，提取第 2 部分的内容
+          # 例如：kytorSegy/navigation1 经过切割后会变成 navigation1，然后再转为小写
+          IMAGE_NAME=$(echo "${{ github.repository }}" | cut -d'/' -f2 | tr '[:upper:]' '[:lower:]')
+          
+          # 默认必定推送到 GitHub 自己的镜像库 (ghcr.io)
+          TAGS="ghcr.io/$REPO_LOWERCASE:latest"
+          
+          # 判断 Docker Hub 的账号和密码是否为空
+          if [ -n "${{ secrets.DOCKERHUB_USERNAME }}" ] && [ -n "${{ secrets.DOCKERHUB_TOKEN }}" ]; then
+            echo "✅ 检测到 Docker Hub 配置，准备同时推送到 Docker Hub。"
+            
+            # [核心修改] 这里不再写死 navtest，而是使用自动截取出来的 $IMAGE_NAME
+            TAGS="$TAGS,docker.io/${{ secrets.DOCKERHUB_USERNAME }}/$IMAGE_NAME:latest"
+            
+            echo "push_docker=true" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️ 未检测到 Docker Hub 配置，将只推送到 GitHub 镜像库。"
+            
+            echo "push_docker=false" >> $GITHUB_OUTPUT
+          fi
+          
+          # 将最终决定好的标签存入环境变量，传给后面的打包步骤
+          echo "tags=$TAGS" >> $GITHUB_OUTPUT
+
+      # --- 第 2 步：登录 GitHub 的镜像库 (必做项) ---
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -36,30 +68,29 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # --- [新增功能] 第 2 步：通过变量登录 Docker Hub ---
+      # --- 第 3 步：登录 Docker Hub (选做项) ---
       - name: Log in to Docker Hub
+        if: steps.docker_meta.outputs.push_docker == 'true'
         uses: docker/login-action@v3
         with:
-          # 这里的变量需要在 GitHub 仓库的 Settings -> Secrets and variables -> Actions 中提前设置好
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # --- 第 3 步：打包并同时推送到两个地方 ---
+      # --- 第 4 步：执行打包并推送 ---
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
-          # [核心修改] 在 tags 这里写上两行，它就会自动把同一个镜像推送到这两个仓库
-          tags: |
-            ghcr.io/${{ github.repository }}:latest
-            docker.io/${{ secrets.DOCKERHUB_USERNAME }}/navtest:latest
+          # 这里的 tags 会自动应用我们在第 1 步计算好的地址
+          tags: ${{ steps.docker_meta.outputs.tags }}
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.description=nav-item
             org.opencontainers.image.licenses=MIT
+          # 开启缓存机制，加快未来的打包速度
           cache-from: type=gha
           cache-to: type=gha,mode=max
