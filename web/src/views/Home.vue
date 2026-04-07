@@ -1,74 +1,88 @@
 <template>
-  <div 
-    class="home-container"
-    :style="customBackground ? { backgroundImage: `url('${customBackground}')` } : {}"
-  >
-    <div class="menu-bar-fixed">
-      <MenuBar 
-        :menus="menus" 
-        :activeId="activeMenu?.id" 
-        :activeSubMenuId="activeSubMenu?.id"
-        @select="selectMenu"
-      />
-    </div>
+  <div class="home-container">
     
-    <div class="search-section">
-      <div class="search-box-wrapper">
-        <div class="search-engine-select">
-          <button v-for="engine in searchEngines" :key="engine.name"
-            :class="['engine-btn', {active: selectedEngine.name === engine.name}]"
-            @click="selectEngine(engine)"
-          >
-            {{ engine.label }}
-          </button>
-        </div>
-        <div class="search-container">
-          <input 
-            v-model="searchQuery" 
-            type="text" 
-            :placeholder="selectedEngine.placeholder" 
-            class="search-input"
-            @keyup.enter="handleSearch"
-          />
-          <button v-if="searchQuery" class="clear-btn" @click="clearSearch" aria-label="清空" title="clear">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"></path></svg>
-          </button>
-          <button @click="handleSearch" class="search-btn" title="search">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-              <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </button>
-        </div>
-      </div>
-    </div>
+    <video
+      v-if="isVideoBg"
+      class="bg-video"
+      :src="customBackground"
+      autoplay
+      loop
+      muted
+      playsinline
+    ></video>
     
-    <div v-if="leftAds.length" class="ad-space-fixed left-ad-fixed">
-      <a v-for="ad in leftAds" :key="ad.id" :href="ad.url" target="_blank">
-        <img :src="ad.img" alt="广告" />
-      </a>
-    </div>
-    <div v-if="rightAds.length" class="ad-space-fixed right-ad-fixed">
-      <a v-for="ad in rightAds" :key="ad.id" :href="ad.url" target="_blank">
-        <img :src="ad.img" alt="广告" />
-      </a>
-    </div>
-    
-    <CardGrid :cards="filteredCards"/>
-    
-    <footer class="footer">
-      <div class="footer-content">
-        <button @click="showFriendLinks = true" class="friend-link-btn">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
-            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
-          </svg>
-          友情链接
-        </button>
-        <p class="copyright">Copyright © 2025 Nav-Item | <a href="https://github.com/eooce/Nav-Item" target="_blank" class="footer-link">Powered by eooce</a></p>
-      </div>
-    </footer>
+    <div 
+      v-else
+      class="bg-image"
+      :style="customBackground ? { backgroundImage: `url('${customBackground}')` } : {}"
+    ></div>
 
-    <div v-if="showFriendLinks" class="modal-overlay" @click="showFriendLinks = false">
+    <div class="content-overlay">
+      <div class="menu-bar-fixed">
+        <MenuBar 
+          :menus="menus" 
+          :activeId="activeMenu?.id" 
+          :activeSubMenuId="activeSubMenu?.id"
+          @select="selectMenu"
+        />
+      </div>
+      
+      <div class="search-section">
+        <div class="search-box-wrapper">
+          <div class="search-engine-select">
+            <button v-for="engine in searchEngines" :key="engine.name"
+              :class="['engine-btn', {active: selectedEngine.name === engine.name}]"
+              @click="selectEngine(engine)"
+            >
+              {{ engine.label }}
+            </button>
+          </div>
+          <div class="search-container">
+            <input 
+              v-model="searchQuery" 
+              type="text" 
+              :placeholder="selectedEngine.placeholder" 
+              class="search-input"
+              @keyup.enter="handleSearch"
+            />
+            <button v-if="searchQuery" class="clear-btn" @click="clearSearch" aria-label="清空" title="clear">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"></path></svg>
+            </button>
+            <button @click="handleSearch" class="search-btn" title="search">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      <div v-if="leftAds.length" class="ad-space-fixed left-ad-fixed">
+        <a v-for="ad in leftAds" :key="ad.id" :href="ad.url" target="_blank">
+          <img :src="ad.img" alt="广告" />
+        </a>
+      </div>
+      <div v-if="rightAds.length" class="ad-space-fixed right-ad-fixed">
+        <a v-for="ad in rightAds" :key="ad.id" :href="ad.url" target="_blank">
+          <img :src="ad.img" alt="广告" />
+        </a>
+      </div>
+      
+      <CardGrid :cards="filteredCards"/>
+      
+      <footer class="footer">
+        <div class="footer-content">
+          <button @click="showFriendLinks = true" class="friend-link-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+            </svg>
+            友情链接
+          </button>
+          <p class="copyright">Copyright © 2025 Nav-Item | <a href="https://github.com/eooce/Nav-Item" target="_blank" class="footer-link">Powered by eooce</a></p>
+        </div>
+      </footer>
+    </div> <div v-if="showFriendLinks" class="modal-overlay" @click="showFriendLinks = false">
       <div class="modal-content" @click.stop>
         <div class="modal-header">
           <h3>友情链接</h3>
@@ -111,7 +125,6 @@
 
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue';
-// ✅ [修改] 引入新增的 searchCards 全站搜索接口
 import { getMenus, getCards, getAds, getFriends, getConfig, searchCards } from '../api';
 import MenuBar from '../components/MenuBar.vue';
 import CardGrid from '../components/CardGrid.vue';
@@ -127,7 +140,13 @@ const showFriendLinks = ref(false);
 const friendLinks = ref([]);
 const customBackground = ref('');
 
-// 聚合搜索配置
+// 判定当前背景到底是不是视频
+const isVideoBg = computed(() => {
+  if (!customBackground.value) return false;
+  const url = customBackground.value.toLowerCase();
+  return url.includes('.mp4') || url.includes('.webm') || url.includes('.ogg');
+});
+
 const searchEngines = [
   {
     name: 'google',
@@ -166,7 +185,6 @@ function selectEngine(engine) {
   selectedEngine.value = engine;
 }
 
-// 点击"X"清空搜索，恢复到正常菜单状态
 function clearSearch() {
   searchQuery.value = '';
   if (!activeMenu.value && menus.value.length > 0) {
@@ -175,7 +193,6 @@ function clearSearch() {
   loadCards();
 }
 
-// 搜索结果过滤（用于站内搜索实时展示）
 const filteredCards = computed(() => {
   if (!searchQuery.value) return cards.value;
   return cards.value.filter(card => 
@@ -185,19 +202,15 @@ const filteredCards = computed(() => {
   );
 });
 
-// 监听搜索框，实时响应输入
 let searchTimer = null;
 watch(searchQuery, (newVal) => {
   if (newVal.trim() === '') {
-    // 清空时恢复菜单
     if (!activeMenu.value && menus.value.length > 0) {
       activeMenu.value = menus.value[0];
     }
     loadCards();
     return;
   }
-
-  // ✅ 站内模式下，输入时自动全站搜索（加 100ms 防抖，避免每个字都请求）
   if (selectedEngine.value.name === 'site') {
     clearTimeout(searchTimer);
     searchTimer = setTimeout(async () => {
@@ -233,7 +246,6 @@ onMounted(async () => {
     activeMenu.value = menus.value[0];
     loadCards();
   }
-  // 加载广告
   const adRes = await getAds();
   leftAds.value = adRes.data.filter(ad => ad.position === 'left');
   rightAds.value = adRes.data.filter(ad => ad.position === 'right');
@@ -244,11 +256,9 @@ onMounted(async () => {
 
 async function selectMenu(menu, parentMenu = null) {
   if (parentMenu) {
-    // 选择的是子菜单
     activeMenu.value = parentMenu;
     activeSubMenu.value = menu;
   } else {
-    // 选择的是主菜单
     activeMenu.value = menu;
     activeSubMenu.value = null;
   }
@@ -261,9 +271,6 @@ async function loadCards() {
   cards.value = res.data;
 }
 
-// ✅ [核心修改] 站内搜索改为调用后端全站搜索接口
-// 原来：前端逐个请求每个主菜单，子菜单完全未覆盖
-// 现在：一次请求搜遍数据库中全部菜单 + 子菜单的所有卡片
 async function handleSearch() {
   if (!searchQuery.value.trim()) return;
 
@@ -271,10 +278,8 @@ async function handleSearch() {
     try {
       const res = await searchCards(searchQuery.value.trim());
       const matched = res.data;
-
       if (matched.length > 0) {
         cards.value = matched;
-        // 取消菜单高亮，表示当前是"全局搜索"视图
         activeMenu.value = null;
         activeSubMenu.value = null;
       } else {
@@ -285,7 +290,6 @@ async function handleSearch() {
       alert('搜索时发生错误，请稍后再试');
     }
   } else {
-    // 站外引擎直接跳转
     const url = selectedEngine.value.url(searchQuery.value);
     window.open(url, '_blank');
   }
@@ -298,16 +302,69 @@ function handleLogoError(event) {
 </script>
 
 <style scoped>
+/* 核心背景布局，确保视频铺满并且在底层 */
+.home-container {
+  min-height: 95vh;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.bg-image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: url('/background.webp');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  z-index: 0;
+}
+
+.bg-video {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+}
+
+/* 一层黑色的透明遮罩，保证文字清晰 */
+.home-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 1;
+}
+
+/* 包含菜单、搜索、卡片的图层，确保在视频上方 */
+.content-overlay {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding-top: 50px; 
+}
+
+/* ================ 下方原有代码不变 ================ */
 .menu-bar-fixed {
   position: fixed;
   top: .6rem;
   left: 0;
   width: 100vw;
   z-index: 100;
-  /* background: rgba(0,0,0,0.6); /* 可根据需要调整 */
-  /* backdrop-filter: blur(8px);  /* 毛玻璃效果 */
 }
-
 .search-engine-select {
   display: flex;
   flex-direction: row;
@@ -330,7 +387,6 @@ function handleLogoError(event) {
   color: #399dff;
   background: #ffffff1a;
 }
-
 .search-container {
   display: flex;
   align-items: center;
@@ -343,7 +399,6 @@ function handleLogoError(event) {
   width: 92%;
   position: relative;
 }
-
 .search-input {
   flex: 1;
   border: none;
@@ -353,11 +408,9 @@ function handleLogoError(event) {
   color: #ffffff;
   outline: none;
 }
-
 .search-input::placeholder {
   color: #999;
 }
-
 .clear-btn {
   background: none;
   border: none;
@@ -368,7 +421,6 @@ function handleLogoError(event) {
   align-items: center;
   padding: 0;
 }
-
 .search-btn {
   background: #e9e9eb00;
   color: #ffffff;
@@ -383,37 +435,9 @@ function handleLogoError(event) {
   transition: background 0.2s;
   margin-right: 0.1rem;
 }
-
 .search-btn:hover {
   background: #3367d6;
 }
-
-.home-container {
-  min-height: 95vh;
-  /* 默认背景 */
-  background-image: url('/background.webp');
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  background-attachment: fixed;
-  display: flex;
-  flex-direction: column;
-  /* padding: 1rem 1rem; */
-  position: relative;
-  padding-top: 50px; 
-}
-
-.home-container::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.3);
-  z-index: 1;
-}
-
 .search-section {
   display: flex;
   flex-direction: column;
@@ -423,7 +447,6 @@ function handleLogoError(event) {
   position: relative;
   z-index: 2;
 }
-
 .search-box-wrapper {
   display: flex;
   flex-direction: column;
@@ -431,7 +454,6 @@ function handleLogoError(event) {
   width: 100%;
   max-width: 480px;
 }
-
 .content-wrapper {
   display: flex;
   max-width: 1400px;
@@ -442,12 +464,10 @@ function handleLogoError(event) {
   flex: 1;
   justify-content: space-between;
 }
-
 .main-content {
   flex: 1;
   min-width: 0;
 }
-
 .ad-space {
   width: 90px;
   min-width: 60px;
@@ -473,7 +493,6 @@ function handleLogoError(event) {
   object-fit: contain;
   margin: 0 auto;
 }
-
 .ad-placeholder {
   background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(10px);
@@ -489,7 +508,6 @@ function handleLogoError(event) {
   align-items: center;
   justify-content: center;
 }
-
 .footer {
   margin-top: auto;
   text-align: center;
@@ -498,14 +516,12 @@ function handleLogoError(event) {
   position: relative;
   z-index: 2;
 }
-
 .footer-content {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 50px;
 }
-
 .friend-link-btn {
   display: flex;
   align-items: center;
@@ -518,13 +534,10 @@ function handleLogoError(event) {
   font-size: 14px;
   padding: 0;
 }
-
 .friend-link-btn:hover {
   color: #1976d2;
   transform: translateY(-1px);
 }
-
-/* 弹窗样式 */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -538,7 +551,6 @@ function handleLogoError(event) {
   z-index: 1000;
   backdrop-filter: blur(5px);
 }
-
 .modal-content {
   background: #8585859c;
   border-radius: 16px;
@@ -551,7 +563,6 @@ function handleLogoError(event) {
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   overflow: hidden;
 }
-
 .modal-header {
   display: flex;
   align-items: center;
@@ -560,14 +571,12 @@ function handleLogoError(event) {
   border-bottom: 1px solid #e5e7eb;
   background: #d3d6d8;
 }
-
 .modal-header h3 {
   margin: 0;
   font-size: 24px;
   font-weight: 600;
   color: #111827;
 }
-
 .close-btn {
   background: none;
   border: none;
@@ -577,18 +586,15 @@ function handleLogoError(event) {
   color: #6b7280;
   transition: all 0.2s;
 }
-
 .close-btn:hover {
   background: #f3f4f6;
   color: #cf1313;
 }
-
 .modal-body {
   flex: 1;
   padding: 32px;
   overflow-y: auto;
 }
-
 .friend-links-grid {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
@@ -598,12 +604,10 @@ function handleLogoError(event) {
   .friend-links-grid {
     grid-template-columns: repeat(3, 1fr);
   }
-
   .container {
     width: 95%;
   }
 }
-
 .friend-link-card {
   display: flex;
   flex-direction: column;
@@ -617,13 +621,11 @@ function handleLogoError(event) {
   border: 1px solid #cfd3d661;
   box-shadow: 0 2px 8px rgba(0,0,0,0.04);
 }
-
 .friend-link-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 16px rgba(0,0,0,0.08);
   background: #ffffff8e;
 }
-
 .friend-link-logo {
   width: 48px;
   height: 48px;
@@ -636,13 +638,11 @@ function handleLogoError(event) {
   background: white;
   box-shadow: 0 1px 4px rgba(0,0,0,0.06);
 }
-
 .friend-link-logo img {
   width: 100%;
   height: 100%;
   object-fit: contain;
 }
-
 .friend-link-placeholder {
   width: 100%;
   height: 100%;
@@ -655,7 +655,6 @@ function handleLogoError(event) {
   font-weight: 600;
   border-radius: 8px;
 }
-
 .friend-link-info h4 {
   margin: 0;
   font-size: 13px;
@@ -665,7 +664,6 @@ function handleLogoError(event) {
   line-height: 1.3;
   word-break: break-all;
 }
-
 .copyright {
   color: rgba(255, 255, 255, 0.8);
   font-size: 14px;
@@ -680,17 +678,14 @@ function handleLogoError(event) {
 .footer-link:hover {
   color: #1976d2;
 }
-
 :deep(.menu-bar) {
   position: relative;
   z-index: 2;
 }
-
 :deep(.card-grid) {
   position: relative;
   z-index: 2;
 }
-
 .ad-space-fixed {
   position: fixed;
   top: 13rem;
@@ -723,36 +718,29 @@ function handleLogoError(event) {
   background: #fff;
   margin: 0 auto;
 }
-
 @media (max-width: 1200px) {
   .content-wrapper {
     flex-direction: column;
     gap: 1rem;
   }
-  
   .ad-space {
     width: 100%;
     height: 100px;
   }
-  
   .ad-placeholder {
     height: 80px;
   }
 }
-
 @media (max-width: 768px) {
   .home-container {
     padding-top: 80px;
   }
-  
   .content-wrapper {
     gap: 0.5rem;
   }
-  
   .ad-space {
     height: 60px;
   }
-  
   .ad-placeholder {
     height: 50px;
     font-size: 12px;
