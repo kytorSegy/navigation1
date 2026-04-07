@@ -91,10 +91,10 @@ navtest/
 │   ├── user.js             # 用户管理
 │   └── upload.js           # 文件上传
 │
-├── database/               # SQLite 数据库目录 (持久化挂载)
-│   └── nav.db
-├── uploads/                # 上传文件目录 (持久化挂载)
-│   └── default-favicon.png
+├── database/               # 所有持久化数据 (唯一需要挂载的目录)
+│   ├── nav.db              # SQLite 数据库
+│   └── uploads/            # 上传的 Logo + 缓存的壁纸文件
+│       └── default-favicon.png
 │
 └── web/                    # 前端项目 (Vue 3 + Vite)
     ├── package.json
@@ -178,12 +178,13 @@ docker run -d \
   --name nav-item \
   -p 3000:3000 \
   -v $(pwd)/database:/app/database \
-  -v $(pwd)/uploads:/app/uploads \
   -e ADMIN_USERNAME=admin \
   -e ADMIN_PASSWORD=your_secure_password \
   -e SITE_TITLE=我的导航 \
   ghcr.io/kystor/navtest:latest
 ```
+
+> 💡 只需挂载一个 `database` 目录，数据库文件和上传文件全部在里面。
 
 #### 可用镜像
 
@@ -214,7 +215,6 @@ services:
       - SITE_TITLE=我的导航
     volumes:
       - ./database:/app/database
-      - ./uploads:/app/uploads
     restart: unless-stopped
 ```
 
@@ -253,12 +253,19 @@ bash <(curl -Ls https://github.com/eooce/nav-item/releases/download/ct8-and-serv
 
 ### 数据持久化
 
-使用 Docker 部署时，**务必挂载以下目录**，否则容器重建后数据丢失：
+所有持久化数据统一存放在 `/app/database` 目录下，Docker 部署时**只需挂载这一个目录**：
+
+```
+/app/database/
+├── nav.db              # SQLite 数据库
+└── uploads/            # 上传的 Logo 图片 + 后端缓存的壁纸文件
+```
 
 | 宿主机路径 | 容器路径 | 说明 |
 |:---|:---|:---|
-| `./database` | `/app/database` | SQLite 数据库文件 |
-| `./uploads` | `/app/uploads` | 上传的 Logo 和缓存的壁纸文件 |
+| `./database` | `/app/database` | 数据库 + 上传文件，全部在这一个目录 |
+
+> ✅ 不再需要单独挂载 `./uploads:/app/uploads`，简化部署配置。
 
 ---
 
@@ -310,8 +317,7 @@ services:
       - ADMIN_USERNAME=admin
       - ADMIN_PASSWORD=your_secure_password
     volumes:
-      - ./data:/app/database
-      - ./uploads:/app/uploads
+      - ./database:/app/database
     restart: always
 
   # 备份服务（Sidecar）
@@ -319,7 +325,7 @@ services:
     image: alpine/git:latest
     container_name: nav-sync
     volumes:
-      - ./data:/app/database
+      - ./database:/app/database
       - ./backup.sh:/app/backup.sh
     entrypoint: ["/bin/sh", "/app/backup.sh"]
     environment:
@@ -337,7 +343,7 @@ services:
 1. **修改默认密码** — 上线第一件事，不要使用 `admin / 123456`
 2. **启用 HTTPS** — 使用 Nginx / Caddy 反向代理，配置 SSL 证书
 3. **限制后台访问** — 对 `/admin` 路径做 IP 白名单或额外认证
-4. **保护敏感信息** — `GITHUB_TOKEN`、`JWT_SECRET` 等使用环境变量或密钥管理工具，不要提交到代码仓库
+4. **保护敏感信息** — `GITHUB_TOKEN`、`JWT_SECRET` 等使用环境变量，不要提交到代码仓库
 5. **备份仓库私有化** — 数据备份仓库建议设为 Private，防止数据泄露
 
 ---
