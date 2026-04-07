@@ -3,7 +3,7 @@ const db = require('../db');
 const auth = require('./authMiddleware');
 const router = express.Router();
 
-// ✅ [新增] 全站搜索接口 —— 必须放在 /:menuId 路由之前，否则 "search" 会被当成 menuId
+// ✅ [新增] 全站搜索接口 —— 必须放在 /:menuId 路由之前
 router.get('/search', (req, res) => {
   const { q } = req.query;
   if (!q || !q.trim()) return res.json([]);
@@ -34,11 +34,9 @@ router.get('/:menuId', (req, res) => {
   let query, params;
   
   if (subMenuId) {
-    // 获取指定子菜单的卡片
     query = 'SELECT * FROM cards WHERE sub_menu_id = ? ORDER BY "order"';
     params = [subMenuId];
   } else {
-    // 获取主菜单的卡片（不包含子菜单的卡片）
     query = 'SELECT * FROM cards WHERE menu_id = ? AND sub_menu_id IS NULL ORDER BY "order"';
     params = [req.params.menuId];
   }
@@ -56,7 +54,7 @@ router.get('/:menuId', (req, res) => {
   });
 });
 
-// 新增、修改、删除卡片需认证
+// 新增卡片
 router.post('/', auth, (req, res) => {
   const { menu_id, sub_menu_id, title, url, logo_url, custom_logo_path, desc, order } = req.body;
   db.run('INSERT INTO cards (menu_id, sub_menu_id, title, url, logo_url, custom_logo_path, desc, "order") VALUES (?, ?, ?, ?, ?, ?, ?, ?)', 
@@ -66,6 +64,7 @@ router.post('/', auth, (req, res) => {
   });
 });
 
+// 修改卡片
 router.put('/:id', auth, (req, res) => {
   const { menu_id, sub_menu_id, title, url, logo_url, custom_logo_path, desc, order } = req.body;
   db.run('UPDATE cards SET menu_id=?, sub_menu_id=?, title=?, url=?, logo_url=?, custom_logo_path=?, desc=?, "order"=? WHERE id=?', 
@@ -75,10 +74,42 @@ router.put('/:id', auth, (req, res) => {
   });
 });
 
+// 删除卡片
 router.delete('/:id', auth, (req, res) => {
   db.run('DELETE FROM cards WHERE id=?', [req.params.id], function(err) {
     if (err) return res.status(500).json({error: err.message});
     res.json({ deleted: this.changes });
+  });
+});
+
+// ✅ [核心新增] 批量更新卡片排序接口
+// 前端拖拽完成后，会将重新排好序的卡片ID数组发送到这里
+router.post('/update-order', auth, (req, res) => {
+  const { sortedIds } = req.body; // 接收包含 ID 的数组
+  
+  // 检查前端传来的数据是否为数组
+  if (!Array.isArray(sortedIds)) {
+    return res.status(400).json({ message: '参数错误，需要数组格式' });
+  }
+
+  // 开启数据库事务，确保批量更新要么全部成功，要么全部失败
+  db.serialize(() => {
+    db.run('BEGIN TRANSACTION');
+    // 准备更新语句：根据卡片ID更新它的 order 值
+    const stmt = db.prepare('UPDATE cards SET "order" = ? WHERE id = ?');
+    
+    // 遍历数组，数组的索引(index)就是它新的排序值（越小越靠前）
+    sortedIds.forEach((id, index) => {
+      stmt.run(index, id);
+    });
+    
+    stmt.finalize();
+    db.run('COMMIT', (err) => {
+      if (err) {
+        return res.status(500).json({ error: '保存排序失败' });
+      }
+      res.json({ message: '排序更新成功' });
+    });
   });
 });
 
