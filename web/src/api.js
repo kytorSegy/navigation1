@@ -66,3 +66,5 @@ export const changePassword = (oldPassword, newPassword) => axios.put(`${BASE}/u
 
 export const getUsers = () => axios.get(`${BASE}/users`, { headers: authHeaders() }); 
 export const getConfig = () => axios.get(`${BASE}/config`);
+// [核心新增] 保存系统全局壁纸设置
+export const updateConfig = (data) => axios.post(`${BASE}/config/background`, data, { headers: authHeaders() });
