@@ -164,11 +164,11 @@ const showFriendLinks = ref(false);
 const friendLinks = ref([]);
 
 // [新增] 用于管理壁纸的变量
-const globalBackground = ref(''); // 站长在后台设置的全局默认壁纸
-const customBackground = ref(''); // 页面当前实际渲染的壁纸
-const showThemeSettings = ref(false); // 控制主题弹窗显示
-const visitorBgInput = ref(''); // 弹窗中输入框绑定的值
-const isBgLoaded = ref(false); // [加载优化] 控制是否完成加载并执行淡入
+const globalBackground = ref(''); 
+const customBackground = ref(''); 
+const showThemeSettings = ref(false); 
+const visitorBgInput = ref(''); 
+const isBgLoaded = ref(false); 
 const bgVideoRef = ref(null); 
 
 function handleVideoEnded() {
@@ -184,31 +184,25 @@ const isVideoBg = computed(() => {
   return url.includes('.mp4') || url.includes('.webm') || url.includes('.ogg');
 });
 
-// [改进方向五]：监听壁纸变化，动态预加载，从而触发渐现动画
 watch(customBackground, (newUrl) => {
   if (!newUrl) {
     isBgLoaded.value = true;
     return;
   }
-  // 每次切换壁纸先隐藏
   isBgLoaded.value = false; 
   
-  if (isVideoBg.value) {
-    // 视频由 @canplay 事件触发 isBgLoaded = true，不在这里处理
-  } else {
-    // 图片使用 JavaScript Image 对象预加载
+  if (!isVideoBg.value) {
     const img = new Image();
     img.src = newUrl;
     img.onload = () => { isBgLoaded.value = true; };
-    img.onerror = () => { isBgLoaded.value = true; }; // 就算加载失败也显示出来（防一直黑屏）
+    img.onerror = () => { isBgLoaded.value = true; }; 
   }
 }, { immediate: true });
 
-// [改进方向四]：保存访客专属壁纸
 function saveVisitorTheme() {
   const url = visitorBgInput.value.trim();
   if (url) {
-    localStorage.setItem('visitor_bg', url); // 存入浏览器本地存储
+    localStorage.setItem('visitor_bg', url); 
     customBackground.value = url;
   } else {
     clearVisitorTheme();
@@ -216,7 +210,6 @@ function saveVisitorTheme() {
   showThemeSettings.value = false;
 }
 
-// [改进方向四]：恢复默认全局壁纸
 function clearVisitorTheme() {
   localStorage.removeItem('visitor_bg');
   visitorBgInput.value = '';
@@ -295,11 +288,10 @@ onMounted(async () => {
     console.error('Failed to load config:', e);
   }
 
-  // [改进方向四]：初始化时优先读取访客的本地缓存壁纸
   const localBg = localStorage.getItem('visitor_bg');
   if (localBg) {
     customBackground.value = localBg;
-    visitorBgInput.value = localBg; // 回显到输入框
+    visitorBgInput.value = localBg; 
   } else {
     customBackground.value = globalBackground.value;
   }
@@ -372,15 +364,13 @@ function handleLogoError(event) {
   flex-direction: column;
 }
 
-/* [改进方向五]：增加底层深色渐变占位背景，防止白屏刺眼 */
 .bg-placeholder {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
   background: linear-gradient(135deg, #1a1c29, #2a2d3e);
-  z-index: -1; /* 垫在最下面 */
+  z-index: -1; 
 }
 
-/* [改进方向五]：壁纸默认透明度为 0，加载完毕后加入 fade-in 类实现淡入 */
 .bg-image, .bg-video {
   opacity: 0;
   transition: opacity 1.2s ease-in-out;
@@ -423,7 +413,6 @@ function handleLogoError(event) {
   padding-top: 50px; 
 }
 
-/* [改进方向四]：右上角主题按钮样式 */
 .theme-toggle-btn {
   position: fixed;
   top: 20px;
@@ -446,7 +435,6 @@ function handleLogoError(event) {
   box-shadow: 0 6px 16px rgba(0,0,0,0.2);
 }
 
-/* [改进方向四]：主题弹窗独有样式 */
 .theme-modal {
   width: 420px !important;
   height: auto !important;
@@ -505,7 +493,6 @@ function handleLogoError(event) {
   transition: all 0.2s;
 }
 .clear-theme-btn:hover { background: #f8fafc; color: #ef4444; border-color: #ef4444; }
-
 
 .menu-bar-fixed {
   position: fixed;
@@ -798,124 +785,4 @@ function handleLogoError(event) {
 .friend-link-logo img {
   width: 100%;
   height: 100%;
-  object-fit: contain;
-}
-.friend-link-placeholder {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #64748b;
-  font-size: 20px;
-  font-weight: 600;
-  border-radius: 8px;
-}
-.friend-link-info h4 {
-  margin: 0;
-  font-size: 13px;
-  font-weight: 500;
-  color: #334155;
-  text-align: center;
-  line-height: 1.3;
-  word-break: break-all;
-}
-.copyright {
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 14px;
-  margin: 0;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-}
-.footer-link {
-  color: #ffffffcc;
-  text-decoration: none;
-  transition: color 0.2s;
-}
-.footer-link:hover {
-  color: #1976d2;
-}
-:deep(.menu-bar) {
-  position: relative;
-  z-index: 2;
-}
-:deep(.card-grid) {
-  position: relative;
-  z-index: 2;
-}
-.ad-space-fixed {
-  position: fixed;
-  top: 13rem;
-  z-index: 10;
-  width: 90px;
-  min-width: 60px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 5px;
-  padding: 0;
-  background: transparent;
-  margin: 0;
-}
-.left-ad-fixed {
-  left: 0;
-}
-.right-ad-fixed {
-  right: 0;
-}
-.ad-space-fixed a {
-  width: 100%;
-  display: block;
-}
-.ad-space-fixed img {
-  width: 100%;
-  max-width: 90px;
-  max-height: 160px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.12);
-  background: #fff;
-  margin: 0 auto;
-}
-@media (max-width: 1200px) {
-  .content-wrapper {
-    flex-direction: column;
-    gap: 1rem;
-  }
-  .ad-space {
-    width: 100%;
-    height: 100px;
-  }
-  .ad-placeholder {
-    height: 80px;
-  }
-}
-@media (max-width: 768px) {
-  .home-container {
-    padding-top: 80px;
-  }
-  .content-wrapper {
-    gap: 0.5rem;
-  }
-  .ad-space {
-    height: 60px;
-  }
-  .ad-placeholder {
-    height: 50px;
-    font-size: 12px;
-    padding: 1rem 0.5rem;
-  }
-  .footer {
-    padding-top: 2rem;
-  }
-  .friend-link-btn {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: none;
-    border: none;
-    color: rgba(255, 255, 255, 0.8);
-    cursor: pointer;
-    transition: all 0.3s ease;
-    font-size: 0.7rem;
-    padding: 0;
-  }
-  .copyright {
-    color: rgba(255, 255, 255, 0.8);
+  object
