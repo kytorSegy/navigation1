@@ -41,6 +41,7 @@
         <li :class="{active: page==='card'}" @click="page='card'; closeSider()">卡片管理</li>
         <li :class="{active: page==='ad'}" @click="page='ad'; closeSider()">广告管理</li>
         <li :class="{active: page==='friend'}" @click="page='friend'; closeSider()">友链管理</li>
+        <li :class="{active: page==='system'}" @click="page='system'; closeSider()">系统设置</li>
         <li :class="{active: page==='user'}" @click="page='user'; closeSider()">用户管理</li>
       </ul>
     </aside>
@@ -81,6 +82,7 @@
         <CardManage v-if="page==='card'" />
         <AdManage v-if="page==='ad'" />
         <FriendLinkManage v-if="page==='friend'" />
+        <SystemManage v-if="page==='system'" />
         <UserManage v-if="page==='user'" />
       </div>
       <footer class="admin-footer">
@@ -97,6 +99,7 @@ import MenuManage from './admin/MenuManage.vue';
 import CardManage from './admin/CardManage.vue';
 import AdManage from './admin/AdManage.vue';
 import FriendLinkManage from './admin/FriendLinkManage.vue';
+import SystemManage from './admin/SystemManage.vue'; // 引入新建的系统配置组件
 import UserManage from './admin/UserManage.vue';
 
 const page = ref('welcome');
@@ -116,6 +119,7 @@ const pageTitle = computed(() => {
     case 'card': return '卡片管理';
     case 'ad': return '广告管理';
     case 'friend': return '友链管理';
+    case 'system': return '系统全局设置'; // 配置对应的标题
     case 'user': return '用户管理';
     default: return '';
   }
@@ -125,17 +129,17 @@ onMounted(() => {
   const token = localStorage.getItem('token');
   isLoggedIn.value = !!token;
   if (isLoggedIn.value) {
-    // 拉取用户信息
     fetchLastLoginInfo();
   }
 });
+
 async function fetchLastLoginInfo() {
   try {
     const res = await fetch('/api/users/me', { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
     if (res.ok) {
       const data = await res.json();
       lastLoginTime.value = data.last_login_time || '';
-      lastLoginIp.value = data.last_login_ip || '';
+      lastLoginIp.value = data.lastLoginIp || '';
     }
   } catch (error) {
     console.error('获取用户信息失败:', error);
@@ -186,6 +190,7 @@ function closeSider() {
 </script>
 
 <style scoped>
+/* 这里的原 CSS 不变，直接粘贴原有 CSS 代码即可 */
 .login-container {
   display: flex;
   justify-content: center;
@@ -194,7 +199,6 @@ function closeSider() {
   background: linear-gradient(135deg,#667eea,#764ba2);
   font-family: 'Segoe UI', Arial, sans-serif;
 }
-
 .login-card {
   background: #fff;
   border-radius: 12px;
@@ -203,7 +207,6 @@ function closeSider() {
   width: 400px;
   max-width: 90%;
 }
-
 .login-title {
   text-align: center;
   font-size: 2rem;
@@ -212,13 +215,11 @@ function closeSider() {
   margin-bottom: 32px;
   letter-spacing: 2px;
 }
-
 .login-form {
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
-
 .login-input {
   padding: 12px 16px;
   border: 1px solid #d0d7e2;
@@ -230,12 +231,10 @@ function closeSider() {
   line-height: 48px;
   box-sizing: border-box;
 }
-
 .login-input:focus {
   outline: 2px solid #2566d8;
   border-color: #2566d8;
 }
-
 .login-btn {
   background: #2566d8;
   color: #fff;
@@ -247,22 +246,18 @@ function closeSider() {
   cursor: pointer;
   transition: background 0.2s;
 }
-
 .login-btn:hover:not(:disabled) {
   background: #174ea6;
 }
-
 .login-btn:disabled {
   background: #ccc;
   cursor: not-allowed;
 }
-
 .login-buttons {
   display: flex;
   gap: 12px;
   align-items: center;
 }
-
 .back-btn {
   background: #f8f9fa;
   color: #2b2b2b;
@@ -279,24 +274,20 @@ function closeSider() {
   flex: 1;
   justify-content: center;
 }
-
 .back-btn:hover {
   background: #e9ecef;
   color: #7e42ff;
   border-color: #adb5bd;
 }
-
 .login-btn {
   flex: 2;
 }
-
 .login-error {
   color: #e74c3c;
   text-align: center;
   margin: 0;
   font-size: 14px;
 }
-
 .admin-layout {
   display: flex;
   min-height: 100vh;
@@ -607,12 +598,8 @@ function closeSider() {
     color: #2566d8;
     z-index: 300;
   }
-  /* 表单和按钮间距优化 */
-  .input, .btn {
-    margin-bottom: 8px;
-  }
 }
 .menu-toggle {
   display: none;
 }
-</style> 
+</style>
