@@ -64,7 +64,7 @@ function hideSubMenu(menuId) {
     if (hoveredMenuId.value === menuId) {
       hoveredMenuId.value = null;
     }
-  }, 100);
+  }, 250);
 }
 </script>
 
@@ -157,7 +157,18 @@ function hideSubMenu(menuId) {
   padding: 4px 0;
   margin-top: 2px;
 }
-
+/* 用伪元素搭建一座隐形的桥，填补菜单之间的悬浮死区 */
+.sub-menu::before {
+  content: '';
+  position: absolute;
+  /* 向上延伸 15px，覆盖住主菜单到子菜单之间的空白区域 */
+  top: -15px; 
+  left: 0;
+  width: 100%;
+  height: 15px;
+  background: transparent; /* 完全透明，肉眼看不见，但鼠标能划过 */
+}
+  
 .sub-menu.show {
   opacity: 1;
   visibility: visible;
