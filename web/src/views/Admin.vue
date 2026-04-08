@@ -93,13 +93,13 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { login } from '../api';
 import MenuManage from './admin/MenuManage.vue';
 import CardManage from './admin/CardManage.vue';
 import AdManage from './admin/AdManage.vue';
 import FriendLinkManage from './admin/FriendLinkManage.vue';
-import SystemManage from './admin/SystemManage.vue'; // 引入新建的系统配置组件
+import SystemManage from './admin/SystemManage.vue';
 import UserManage from './admin/UserManage.vue';
 
 const page = ref('welcome');
@@ -119,17 +119,58 @@ const pageTitle = computed(() => {
     case 'card': return '卡片管理';
     case 'ad': return '广告管理';
     case 'friend': return '友链管理';
-    case 'system': return '系统全局设置'; // 配置对应的标题
+    case 'system': return '系统全局设置';
     case 'user': return '用户管理';
     default: return '';
   }
 });
 
-onMounted(() => {
+// 检查登录状态并验证3天有效期
+function checkLoginStatus() {
   const token = localStorage.getItem('token');
-  isLoggedIn.value = !!token;
-  if (isLoggedIn.value) {
+  const tokenTimestamp = localStorage.getItem('token_timestamp');
+  
+  if (token && tokenTimestamp) {
+    const now = Date.now();
+    const threeDays = 3 * 24 * 60 * 60 * 1000;
+    if (now - parseInt(tokenTimestamp) > threeDays) {
+      // Token 过期，清除并跳转到登录页
+      logout();
+      return false;
+    }
+    isLoggedIn.value = true;
+    return true;
+  } else if (token) {
+    // 兼容旧版：有 token 但没有时间戳，设置时间戳
+    localStorage.setItem('token_timestamp', Date.now().toString());
+    isLoggedIn.value = true;
+    return true;
+  }
+  isLoggedIn.value = false;
+  return false;
+}
+
+// 未登录时自动跳转到登录页面
+function redirectToLogin() {
+  if (!isLoggedIn.value) {
+    page.value = 'welcome';
+  }
+}
+
+onMounted(() => {
+  const loggedIn = checkLoginStatus();
+  if (loggedIn) {
     fetchLastLoginInfo();
+  } else {
+    // 未登录时自动跳转到登录页面
+    redirectToLogin();
+  }
+});
+
+// 监听登录状态变化，自动跳转
+watch(isLoggedIn, (newVal) => {
+  if (!newVal) {
+    redirectToLogin();
   }
 });
 
@@ -159,6 +200,8 @@ async function handleLogin() {
     const response = await login(username.value, password.value);
     if (response.data.token) {
       localStorage.setItem('token', response.data.token);
+      // 记录登录时间戳，用于3天有效期检查
+      localStorage.setItem('token_timestamp', Date.now().toString());
       isLoggedIn.value = true;
       lastLoginTime.value = response.data.lastLoginTime || '';
       lastLoginIp.value = response.data.lastLoginIp || '';
@@ -172,10 +215,14 @@ async function handleLogin() {
 
 function logout() {
   localStorage.removeItem('token');
+  localStorage.removeItem('token_timestamp');
   isLoggedIn.value = false;
   username.value = '';
   password.value = '';
   loginError.value = '';
+  page.value = 'welcome';
+  // 自动跳转到登录页面
+  redirectToLogin();
 }
 
 function goHome() {
