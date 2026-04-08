@@ -155,6 +155,10 @@ export const getConfig = () => {
   return request.get('/settings');
 };
 
+export const updateConfig = (data) => {
+  return request.post('/settings', data);
+};
+
 // ==================== 用户相关 ====================
 export const getUserInfo = () => {
   return request.get('/user/info');
