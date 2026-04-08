@@ -1,13 +1,3 @@
-<!-- =====================================================
-  文件: web/src/components/MenuBar.vue
-  说明: 整体替换此文件
-  改动:
-    1. [代码] .menu-bar button 改为 .menu-bar > .menu-item > button，消除 12 处 !important
-    2. [动画] 菜单指示器增加渐变色 + hover 半透明预览
-    3. [动画] 二级菜单弹出增加 scale 缩放动画 + 毛玻璃背景（保持透明质感）
-    4. [移动端] 二级菜单字号从 8px 修复为 13px
-    5. [代码] 移除 .sub-menu-item::before { display: none } hack
-===================================================== -->
 <template>
   <nav class="menu-bar">
     <div 
@@ -60,11 +50,12 @@ function showSubMenu(menuId) {
 }
 
 function hideSubMenu(menuId) {
+  // 延迟隐藏，给用户时间移动到子菜单
   setTimeout(() => {
     if (hoveredMenuId.value === menuId) {
       hoveredMenuId.value = null;
     }
-  }, 250);
+  }, 100);
 }
 </script>
 
@@ -81,8 +72,7 @@ function hideSubMenu(menuId) {
   position: relative;
 }
 
-/* [改动1] 改为直接子元素选择器，不再污染子菜单按钮 */
-.menu-bar > .menu-item > button {
+.menu-bar button {
   background: transparent;
   border: none;
   color: #fff;
@@ -90,8 +80,7 @@ function hideSubMenu(menuId) {
   font-weight: 500;
   padding: 0.8rem 2rem;
   cursor: pointer;
-  transition: color var(--transition-smooth, 0.3s cubic-bezier(0.23, 1, 0.32, 1)),
-              transform var(--transition-fast, 0.2s ease);
+  transition: all 0.3s ease;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
   box-shadow: none;
   border-radius: 8px;
@@ -99,134 +88,106 @@ function hideSubMenu(menuId) {
   overflow: hidden;
 }
 
-/* [改动2] 菜单指示器增加渐变色 + 透明度过渡 */
-.menu-bar > .menu-item > button::before {
+.menu-bar button::before {
   content: '';
   position: absolute;
-  bottom: 2px;
+  bottom: 0;
   left: 50%;
   width: 0;
-  height: 2.5px;
-  background: linear-gradient(90deg, #399dff, #60c0ff);
-  border-radius: 2px;
-  transition: width 0.3s cubic-bezier(0.23, 1, 0.32, 1),
-              opacity 0.3s ease;
+  height: 2px;
+  background: #399dff;
+  transition: all 0.3s ease;
   transform: translateX(-50%);
-  opacity: 0;
 }
 
-.menu-bar > .menu-item > button:hover {
+.menu-bar button:hover {
   color: #399dff;
   transform: translateY(-1px);
 }
 
-/* [改动2] hover 时显示半透明指示器预览 */
-.menu-bar > .menu-item > button:hover::before {
-  width: 40%;
-  opacity: 0.5;
-}
-
-.menu-bar > .menu-item > button.active {
+.menu-bar button.active {
   color: #399dff;
 }
 
-.menu-bar > .menu-item > button.active::before {
+.menu-bar button.active::before {
   width: 60%;
-  opacity: 1;
 }
 
-/* [改动3] 二级菜单：毛玻璃背景 + scale 缩放弹出动画 */
+/* 二级菜单样式 */
 .sub-menu {
   position: absolute;
   top: 100%;
   left: 50%;
-  transform: translateX(-50%) translateY(-8px) scale(0.95);
-  background: rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border-radius: 10px;
-  min-width: 130px;
+  transform: translateX(-50%);
+  background: #5c595900;
+  backdrop-filter: blur(8px);
+  border-radius: 6px;
+  min-width: 120px;
   opacity: 0;
   visibility: hidden;
-  transition: opacity 0.2s ease,
-              transform 0.2s cubic-bezier(0.23, 1, 0.32, 1),
-              visibility 0.2s;
+  transition: all 0.2s ease;
   z-index: 1000;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25),
-              inset 0 0 0 1px rgba(255, 255, 255, 0.12);
-  padding: 4px 0;
-  margin-top: 2px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  margin-top: -2px; 
 }
-/* 用伪元素搭建一座隐形的桥，填补菜单之间的悬浮死区 */
-.sub-menu::before {
-  content: '';
-  position: absolute;
-  /* 向上延伸 15px，覆盖住主菜单到子菜单之间的空白区域 */
-  top: -15px; 
-  left: 0;
-  width: 100%;
-  height: 15px;
-  background: transparent; /* 完全透明，肉眼看不见，但鼠标能划过 */
-}
-  
+
 .sub-menu.show {
   opacity: 1;
   visibility: visible;
-  transform: translateX(-50%) translateY(0) scale(1);
+  transform: translateX(-50%) translateY(2px);
 }
 
-/* [改动1] 子菜单样式 —— 不再需要任何 !important */
 .sub-menu-item {
-  display: block;
-  width: calc(100% - 8px);
-  text-align: center;
-  padding: 0.5rem 1rem;
-  border: none;
-  background: transparent;
-  color: rgba(255, 255, 255, 0.85);
-  font-size: 14px;
-  font-weight: 400;
-  cursor: pointer;
-  transition: background 0.2s ease, color 0.2s ease;
-  border-radius: 6px;
-  margin: 0 4px;
-  line-height: 1.5;
-  box-sizing: border-box;
+  display: block !important;
+  width: 100% !important;
+  text-align: center !important;
+  padding: 0.4rem 1rem !important;
+  border: none !important;
+  background: transparent !important;
+  color: #fff !important;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  border-radius: 0 !important;
+  text-shadow: none !important;
+  line-height: 1.5 !important;
 }
 
 .sub-menu-item:hover {
-  background: rgba(57, 157, 255, 0.2);
-  color: #399dff;
+  background: rgba(57, 157, 255, 0.25) !important;
+  color: #399dff !important;
+  transform: none !important;
 }
 
 .sub-menu-item.active {
-  background: rgba(57, 157, 255, 0.25);
-  color: #399dff;
-  font-weight: 500;
+  background: rgba(57, 157, 255, 0.35) !important;
+  color: #399dff !important;
+  font-weight: 500 !important;
 }
 
-/* [改动4] 移动端：字号从 8px 修复为 13px */
+.sub-menu-item::before {
+  display: none;
+}
+
 @media (max-width: 768px) {
   .menu-bar {
-    gap: 0.15rem;
+    gap: 0.2rem;
   }
   
-  .menu-bar > .menu-item > button {
+  .menu-bar button {
     font-size: 14px;
     padding: .4rem .8rem;
   }
   
   .sub-menu {
-    min-width: 110px;
+    min-width: 100px;
   }
   
   .sub-menu-item {
-    font-size: 13px;
-    padding: 0.5rem 1rem;
-    min-height: 36px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    font-size: 8px !important;
+    padding: 0.2rem 0.8rem !important;
   }
 }
-</style>
+</style> 

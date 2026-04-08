@@ -1,9 +1,3 @@
-/* =====================================================
- * 文件: app.js
- * 说明: 整体替换此文件
- * 改动: 所有 uploads 路径改为 database/uploads，
- *       数据持久化统一在 /app/database 下
- * ===================================================== */
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -31,20 +25,22 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 app.use(compression());
-// [改动] uploads 静态文件目录改为 database/uploads
-app.use('/uploads', express.static(path.join(__dirname, 'database/uploads')));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use(express.static(path.join(__dirname, 'web/dist'), { index: false }));
 
 // =================================================================
-// 在加载首页时，从数据库读取你设置的标题，渲染到 index.html
+// [修改]：在加载首页时，从数据库读取你设置的标题，渲染到 index.html
 // =================================================================
 const sendIndexHtml = (res) => {
   const indexPath = path.join(__dirname, 'web/dist', 'index.html');
   fs.readFile(indexPath, 'utf8', (err, htmlData) => {
     if (err) return res.status(500).send('Server Error');
     
+    // 从 settings 表中查找 title
     db.get("SELECT value FROM settings WHERE key='title'", (dbErr, row) => {
+      // 如果数据库有标题就用数据库的，没有就用 config 默认的
       const siteTitle = (row && row.value) ? row.value : ((config.app && config.app.title) || process.env.SITE_TITLE || '我的导航');
+      // 替换 HTML 中的占位符
       const renderedHtml = htmlData.replace('__SITE_TITLE__', siteTitle);
       res.send(renderedHtml);
     });
@@ -75,9 +71,8 @@ app.get('/api/background', (req, res) => {
     return res.status(404).send('未配置网络壁纸链接或链接无效');
   }
 
-  // [改动] 壁纸缓存目录改为 database/uploads
-  const uploadDir = path.join(__dirname, 'database/uploads');
-  if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+  const uploadDir = path.join(__dirname, 'uploads');
+  if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
 
   const urlHash = crypto.createHash('md5').update(bgUrl).digest('hex');
   let ext = '.jpg';
@@ -111,13 +106,14 @@ app.get('/api/background', (req, res) => {
 });
 
 // =================================================================
-// 给前端返回配置信息（同时返回标题和壁纸）
+// [修改]：给前端返回配置信息（同时返回标题和壁纸）
 // =================================================================
 app.get('/api/config', (req, res) => {
   db.all("SELECT key, value FROM settings WHERE key IN ('background', 'title')", (err, rows) => {
     let bgUrl = '';
     let titleStr = '';
     
+    // 遍历数据库结果，分别赋值
     if (rows) {
       rows.forEach(r => {
         if (r.key === 'background') bgUrl = r.value;
@@ -142,12 +138,14 @@ app.get('/api/config', (req, res) => {
 });
 
 // =================================================================
-// 升级配置保存接口，支持一次性保存多个设置项
+// [修改]：升级配置保存接口，支持一次性保存多个设置项
 // =================================================================
 app.post('/api/config/settings', authMiddleware, (req, res) => {
+  // 从前端接收 title 和 background
   const { title, background } = req.body;
   const updates = [];
   
+  // 将前端传来的有效值放入更新队列
   if (title !== undefined) updates.push({ key: 'title', value: title });
   if (background !== undefined) updates.push({ key: 'background', value: background });
 
@@ -156,6 +154,7 @@ app.post('/api/config/settings', authMiddleware, (req, res) => {
   let completed = 0;
   let hasError = false;
 
+  // 循环更新或插入每一项配置
   updates.forEach(item => {
     db.get("SELECT * FROM settings WHERE key=?", [item.key], (err, row) => {
       if (row) {
@@ -169,6 +168,7 @@ app.post('/api/config/settings', authMiddleware, (req, res) => {
   function checkDone(err) {
     if (err) hasError = true;
     completed++;
+    // 当所有项目处理完毕后返回结果
     if (completed === updates.length) {
       if (hasError) return res.status(500).json({ error: '部分设置保存失败' });
       res.json({ success: true });
