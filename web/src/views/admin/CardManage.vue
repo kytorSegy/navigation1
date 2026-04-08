@@ -83,16 +83,21 @@
         </select>
       </div>
       <div class="add-row">
-        <input v-model="newCardTitle" placeholder="卡片标题" class="input narrow" />
-        <input v-model="newCardUrl" placeholder="卡片链接" class="input wide" />
-        <input v-model="newCardLogo" placeholder="logo链接(可选)" class="input medium" />
-        <button class="btn" @click="addCard">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <input v-model="newCardTitle" placeholder="卡片标题 (留空可自动解析)" class="input narrow" />
+        <input v-model="newCardUrl" placeholder="卡片链接" class="input wide" @blur="autoParseNewCard" />
+        <input v-model="newCardLogo" placeholder="Logo链接 (留空可自动解析)" class="input medium" />
+        <button class="btn" @click="addCard" :disabled="isParsing">
+          <svg v-if="!isParsing" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M12 5v14M5 12h14"/>
           </svg>
-          添加卡片
+          <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin">
+            <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
+          </svg>
+          {{ isParsing ? '解析中...' : '添加卡片' }}
         </button>
       </div>
+      <p v-if="parseError" class="parse-tip error">{{ parseError }}</p>
+      <p v-if="parseSuccess" class="parse-tip success">{{ parseSuccess }}</p>
     </div>
 
     <!-- 卡片列表 -->
@@ -112,11 +117,12 @@
               </button>
             </th>
             <th style="width: 50px; text-align: center;">排序</th>
-            <th>标题</th>
+            <th style="width: 180px;">标题</th>
+            <th style="width: 120px;">Logo</th>
             <th>网址</th>
             <th>描述</th>
             <th v-if="showSearchResults">所属菜单</th>
-            <th>操作</th>
+            <th style="width: 70px;">操作</th>
           </tr>
         </thead>
         
@@ -155,6 +161,12 @@
                 <div class="card-title-cell">
                   <img :src="getLogo(element)" class="card-logo" @error="handleLogoError" />
                   <input v-model="element.title" @blur="updateCard(element)" class="table-input" />
+                </div>
+              </td>
+              <td>
+                <div class="logo-cell">
+                  <img :src="getLogo(element)" class="logo-preview" @error="handleLogoError" />
+                  <input v-model="element.logo_url" @blur="updateCard(element)" class="table-input logo-input" placeholder="logo链接" />
                 </div>
               </td>
               <td><input v-model="element.url" @blur="updateCard(element)" class="table-input" /></td>
@@ -246,7 +258,8 @@ import {
   updateCardOrder,
   searchCards,
   batchMoveCards,
-  batchDeleteCards
+  batchDeleteCards,
+  parseLink
 } from '../../api';
 
 const menus = ref([]);
@@ -257,6 +270,9 @@ const newCardTitle = ref('');
 const newCardUrl = ref('');
 const newCardLogo = ref('');
 const loading = ref(false);
+const isParsing = ref(false);
+const parseError = ref('');
+const parseSuccess = ref('');
 
 // 搜索相关
 const searchQuery = ref('');
@@ -415,18 +431,57 @@ function getSubMenuName(subMenuId) {
 
 // 添加卡片
 async function addCard() {
-  if (!newCardTitle.value || !newCardUrl.value) return;
+  if (!newCardUrl.value) return;
   await apiAddCard({ 
     menu_id: selectedMenuId.value, 
     sub_menu_id: selectedSubMenuId.value || null,
-    title: newCardTitle.value, 
+    title: newCardTitle.value || '', 
     url: newCardUrl.value, 
-    logo_url: newCardLogo.value 
+    logo_url: newCardLogo.value || '' 
   });
   newCardTitle.value = '';
   newCardUrl.value = '';
   newCardLogo.value = '';
+  parseError.value = '';
+  parseSuccess.value = '';
   loadCards();
+}
+
+// 智能链接解析：仅输入网址时自动抓取标题和 icon
+async function autoParseNewCard() {
+  if (!newCardUrl.value.trim()) return;
+  // 只有当标题和logo都为空时才自动解析
+  if (newCardTitle.value.trim() && newCardLogo.value.trim()) return;
+  
+  isParsing.value = true;
+  parseError.value = '';
+  parseSuccess.value = '';
+  
+  try {
+    const res = await parseLink(newCardUrl.value.trim());
+    if (res.data.success) {
+      if (!newCardTitle.value.trim() && res.data.title) {
+        newCardTitle.value = res.data.title;
+      }
+      if (!newCardLogo.value.trim() && res.data.icon) {
+        newCardLogo.value = res.data.icon;
+      }
+      parseSuccess.value = res.data.message || '已自动填充';
+      setTimeout(() => { parseSuccess.value = ''; }, 3000);
+    } else {
+      // 失败时使用默认 favicon
+      if (!newCardLogo.value.trim() && res.data.icon) {
+        newCardLogo.value = res.data.icon;
+      }
+      parseError.value = res.data.message || '自动解析失败，请手动填写';
+      setTimeout(() => { parseError.value = ''; }, 5000);
+    }
+  } catch (err) {
+    parseError.value = '网络错误，自动解析失败';
+    setTimeout(() => { parseError.value = ''; }, 5000);
+  } finally {
+    isParsing.value = false;
+  }
 }
 
 // 更新卡片
@@ -839,6 +894,34 @@ async function handleBatchDelete() {
   box-shadow: 0 0 0 3px rgba(57, 157, 255, 0.1);
 }
 
+/* 解析提示 */
+.parse-tip {
+  font-size: 0.8rem;
+  margin-top: 8px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  text-align: center;
+}
+.parse-tip.success {
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
+}
+.parse-tip.error {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+/* 旋转动画 */
+.spin {
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 .table-input {
   width: 100%;
   padding: 8px 4px;
@@ -856,6 +939,55 @@ async function handleBatchDelete() {
   border-color: #399dff;
   background: white;
   box-shadow: 0 0 0 2px rgba(57, 157, 255, 0.1);
+}
+
+/* Logo 列样式 - 清晰可见 */
+.logo-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.logo-preview {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  object-fit: contain;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  flex-shrink: 0;
+}
+.logo-input {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.8rem;
+}
+
+/* 解析提示 */
+.parse-tip {
+  font-size: 0.8rem;
+  margin-top: 8px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  text-align: center;
+}
+.parse-tip.success {
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
+}
+.parse-tip.error {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+/* 加载旋转动画 */
+.spin {
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .btn {
