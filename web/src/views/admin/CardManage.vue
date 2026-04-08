@@ -111,13 +111,13 @@
                 </svg>
               </button>
             </th>
-            <th style="width: 50px; text-align: center;">排序</th>
+            <th style="width: 70px; text-align: center; white-space: nowrap;">排序</th>
             <th style="width: 20%;">标题</th>
             <th style="width: 25%;">Logo</th>
             <th style="width: 25%;">网址</th>
             <th style="width: 20%;">描述</th>
             <th v-if="showSearchResults" style="width: 15%;">所属菜单</th>
-            <th style="width: 70px; text-align: center;">操作</th>
+            <th style="width: 70px; text-align: center; white-space: nowrap;">操作</th>
           </tr>
         </thead>
         
@@ -235,7 +235,6 @@
 </template>
 
 <script setup>
-// 保持原样不变的 JS 逻辑
 import { ref, onMounted, watch, computed } from 'vue';
 import draggable from 'vuedraggable';
 import { getMenus, getCards, addCard as apiAddCard, updateCard as apiUpdateCard, deleteCard as apiDeleteCard, updateCardOrder, searchCards, batchMoveCards, batchDeleteCards, parseLink } from '../../api';
@@ -413,13 +412,11 @@ async function handleBatchDelete() {
 </script>
 
 <style scoped>
-/* 省略了与原文件重复的基础部分，重点更新下方表格和拖拽类 CSS */
 .card-manage { max-width: 1200px; width: 100%; margin: 0 auto; display: flex; flex-direction: column; align-items: center; }
 .card-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px; padding: 24px; margin-bottom: 20px; color: white; box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3); width: 100%; text-align: center; box-sizing: border-box; }
 .header-content { margin-bottom: 15px; text-align: center; }
 .page-title { font-size: 1.5rem; font-weight: 700; margin: 0 0 8px 0; letter-spacing: -0.5px; }
 
-/* 搜索栏、批量操作、筛选栏 CSS 保持一致... */
 .search-bar { display: flex; gap: 10px; justify-content: center; margin-bottom: 15px; width: 100%; max-width: 500px; margin-left: auto; margin-right: auto; }
 .search-input-wrapper { position: relative; flex: 1; min-width: 0; }
 .search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #999; pointer-events: none; }
@@ -439,13 +436,13 @@ async function handleBatchDelete() {
 .filter-row { display: flex; gap: 10px; margin-bottom: 12px; }
 .add-row { display: flex; gap: 8px; flex-wrap: wrap; }
 
-/* 表格核心样式：更均匀的间距 */
 .card-card { background: white; border-radius: 16px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08); overflow: hidden; width: 100%; box-sizing: border-box; }
 .card-table { width: 100%; border-collapse: collapse; }
 .card-table th, .card-table td { padding: 12px 16px; text-align: left; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
-.card-table th { background: #f9fafb; font-weight: 600; color: #374151; font-size: 0.85rem; }
 
-/* 拖拽体验优化：禁用选中 */
+/* [修改点 2] 表头加上 white-space: nowrap，彻底杜绝所有表头文字换行 */
+.card-table th { background: #f9fafb; font-weight: 600; color: #374151; font-size: 0.85rem; white-space: nowrap; }
+
 .drag-handle { 
   cursor: grab; 
   text-align: center; 
@@ -467,10 +464,12 @@ async function handleBatchDelete() {
 .card-title-cell { display: flex; align-items: center; gap: 8px; }
 .menu-tag { background: #f3f4f6; color: #6b7280; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; }
 
-/* 输入框统一排版 */
 .input { padding: 10px 12px; border-radius: 8px; border: 1px solid #d0d7e2; background: #fff; font-size: 0.9rem; box-sizing: border-box; transition: all 0.2s; }
-.input.narrow { width: 140px; }
-.input.medium { width: 140px; }
+
+/* [修改点 1] 把 narrow 和 medium 的宽度从 140px 加大到 190px，让提示文字显示完整 */
+.input.narrow { width: 190px; }
+.input.medium { width: 190px; }
+
 .input.wide { flex: 1; min-width: 150px; }
 .input:focus { outline: none; border-color: #399dff; box-shadow: 0 0 0 3px rgba(57, 157, 255, 0.1); }
 .table-input { width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid transparent; background: transparent; color: #222; font-size: 0.9rem; transition: all 0.2s ease; box-sizing: border-box; }
