@@ -28,11 +28,11 @@ request.interceptors.response.use(
 
 // ==================== 认证相关 ====================
 export const login = (username, password) => {
-  return request.post('/auth/login', { username, password });
+  return request.post('/login', { username, password });
 };
 
 export const changePassword = (oldPassword, newPassword) => {
-  return request.post('/auth/change-password', { oldPassword, newPassword });
+  return request.put('/users/password', { oldPassword, newPassword });
 };
 
 // ==================== 菜单相关 ====================
@@ -161,13 +161,13 @@ export const updateConfig = (data) => {
 
 // ==================== 用户相关 ====================
 export const getUserInfo = () => {
-  return request.get('/users/info');
+  return request.get('/users/profile');
 };
 
 export const getLoginLogs = () => {
-  return request.get('/users/login-logs');
+  return request.get('/users/me');
 };
 
 export const getUserProfile = () => {
-  return request.get('/users/info');
+  return request.get('/users/profile');
 };
