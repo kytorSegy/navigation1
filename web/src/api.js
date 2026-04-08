@@ -1,54 +1,161 @@
 import axios from 'axios';
-const BASE = '/api';
 
-export const login = (username, password) => axios.post(`${BASE}/login`, { username, password });
+const request = axios.create({
+  baseURL: '/api',
+  timeout: 10000
+});
 
-function authHeaders() {
+// 请求拦截器 - 添加 token
+request.interceptors.request.use(config => {
   const token = localStorage.getItem('token');
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
 
-export const getMenus = () => axios.get(`${BASE}/menus`);
-export const addMenu = (data) => axios.post(`${BASE}/menus`, data, { headers: authHeaders() });
-export const updateMenu = (id, data) => axios.put(`${BASE}/menus/${id}`, data, { headers: authHeaders() });
-export const deleteMenu = (id) => axios.delete(`${BASE}/menus/${id}`, { headers: authHeaders() });
+// 响应拦截器 - 处理错误
+request.interceptors.response.use(
+  response => response,
+  error => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token');
+      window.location.href = '/admin';
+    }
+    return Promise.reject(error);
+  }
+);
 
-export const getSubMenus = (menuId) => axios.get(`${BASE}/menus/${menuId}/submenus`);
-export const addSubMenu = (menuId, data) => axios.post(`${BASE}/menus/${menuId}/submenus`, data, { headers: authHeaders() });
-export const updateSubMenu = (id, data) => axios.put(`${BASE}/menus/submenus/${id}`, data, { headers: authHeaders() });
-export const deleteSubMenu = (id) => axios.delete(`${BASE}/menus/submenus/${id}`, { headers: authHeaders() });
+// ==================== 认证相关 ====================
+export const login = (username, password) => {
+  return request.post('/auth/login', { username, password });
+};
 
+export const changePassword = (oldPassword, newPassword) => {
+  return request.post('/auth/change-password', { oldPassword, newPassword });
+};
+
+// ==================== 菜单相关 ====================
+export const getMenus = () => {
+  return request.get('/menus');
+};
+
+export const addMenu = (name) => {
+  return request.post('/menus', { name });
+};
+
+export const updateMenu = (id, name) => {
+  return request.put(`/menus/${id}`, { name });
+};
+
+export const deleteMenu = (id) => {
+  return request.delete(`/menus/${id}`);
+};
+
+export const addSubMenu = (parentId, name) => {
+  return request.post(`/menus/${parentId}/submenus`, { name });
+};
+
+export const updateSubMenu = (id, name) => {
+  return request.put(`/menus/submenus/${id}`, { name });
+};
+
+export const deleteSubMenu = (id) => {
+  return request.delete(`/menus/submenus/${id}`);
+};
+
+// ==================== 卡片相关 ====================
 export const getCards = (menuId, subMenuId = null) => {
-  const params = subMenuId ? { subMenuId } : {};
-  return axios.get(`${BASE}/cards/${menuId}`, { params });
-};
-export const addCard = (data) => axios.post(`${BASE}/cards`, data, { headers: authHeaders() });
-export const updateCard = (id, data) => axios.put(`${BASE}/cards/${id}`, data, { headers: authHeaders() });
-export const deleteCard = (id) => axios.delete(`${BASE}/cards/${id}`, { headers: authHeaders() });
-export const updateCardOrder = (data) => axios.post(`${BASE}/cards/update-order`, data, { headers: authHeaders() });
-export const searchCards = (q) => axios.get(`${BASE}/cards/search`, { params: { q } });
-
-export const uploadLogo = (file) => {
-  const formData = new FormData();
-  formData.append('logo', file);
-  return axios.post(`${BASE}/upload`, formData, { headers: { ...authHeaders(), 'Content-Type': 'multipart/form-data' } });
+  let url = `/cards/${menuId}`;
+  if (subMenuId) {
+    url += `?subMenuId=${subMenuId}`;
+  }
+  return request.get(url);
 };
 
-export const getAds = () => axios.get(`${BASE}/ads`);
-export const addAd = (data) => axios.post(`${BASE}/ads`, data, { headers: authHeaders() });
-export const updateAd = (id, data) => axios.put(`${BASE}/ads/${id}`, data, { headers: authHeaders() });
-export const deleteAd = (id) => axios.delete(`${BASE}/ads/${id}`, { headers: authHeaders() });
+export const addCard = (data) => {
+  return request.post('/cards', data);
+};
 
-export const getFriends = () => axios.get(`${BASE}/friends`);
-export const addFriend = (data) => axios.post(`${BASE}/friends`, data, { headers: authHeaders() });
-export const updateFriend = (id, data) => axios.put(`${BASE}/friends/${id}`, data, { headers: authHeaders() });
-export const deleteFriend = (id) => axios.delete(`${BASE}/friends/${id}`, { headers: authHeaders() });
+export const updateCard = (id, data) => {
+  return request.put(`/cards/${id}`, data);
+};
 
-export const getUserProfile = () => axios.get(`${BASE}/users/profile`, { headers: authHeaders() });
-export const changePassword = (oldPassword, newPassword) => axios.put(`${BASE}/users/password`, { oldPassword, newPassword }, { headers: authHeaders() });
-export const getUsers = () => axios.get(`${BASE}/users`, { headers: authHeaders() }); 
+export const deleteCard = (id) => {
+  return request.delete(`/cards/${id}`);
+};
 
-export const getConfig = () => axios.get(`${BASE}/config`);
+export const updateCardOrder = (data) => {
+  return request.post('/cards/update-order', data);
+};
 
-// [核心修改] 接口地址修改为 /config/settings，用于提交包裹着多种配置的对象
-export const updateConfig = (data) => axios.post(`${BASE}/config/settings`, data, { headers: authHeaders() });
+// ✅ 搜索卡片
+export const searchCards = (keyword) => {
+  return request.get(`/cards/search?q=${encodeURIComponent(keyword)}`);
+};
+
+// ✅ 批量移动卡片
+export const batchMoveCards = (card_ids, target_menu_id, target_sub_menu_id) => {
+  return request.post('/cards/batch-move', { 
+    card_ids, 
+    target_menu_id, 
+    target_sub_menu_id: target_sub_menu_id || null 
+  });
+};
+
+// ✅ 批量删除卡片
+export const batchDeleteCards = (card_ids) => {
+  return request.post('/cards/batch-delete', { card_ids });
+};
+
+// ==================== 广告相关 ====================
+export const getAds = () => {
+  return request.get('/ads');
+};
+
+export const addAd = (data) => {
+  return request.post('/ads', data);
+};
+
+export const updateAd = (id, data) => {
+  return request.put(`/ads/${id}`, data);
+};
+
+export const deleteAd = (id) => {
+  return request.delete(`/ads/${id}`);
+};
+
+// ==================== 友链相关 ====================
+export const getFriends = () => {
+  return request.get('/friends');
+};
+
+export const addFriend = (data) => {
+  return request.post('/friends', data);
+};
+
+export const updateFriend = (id, data) => {
+  return request.put(`/friends/${id}`, data);
+};
+
+export const deleteFriend = (id) => {
+  return request.delete(`/friends/${id}`);
+};
+
+// ==================== 系统设置 ====================
+export const getSettings = () => {
+  return request.get('/settings');
+};
+
+export const updateSettings = (data) => {
+  return request.post('/settings', data);
+};
+
+// ==================== 用户相关 ====================
+export const getUserInfo = () => {
+  return request.get('/user/info');
+};
+
+export const getLoginLogs = () => {
+  return request.get('/user/login-logs');
+};
