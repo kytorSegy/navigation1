@@ -167,3 +167,7 @@ export const getUserInfo = () => {
 export const getLoginLogs = () => {
   return request.get('/user/login-logs');
 };
+
+export const getUserProfile = () => {
+  return request.get('/user/info');
+};
