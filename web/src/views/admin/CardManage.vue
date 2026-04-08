@@ -644,8 +644,8 @@ async function handleBatchDelete() {
 
 /* 批量操作栏 */
 .batch-operations {
-  background: #fff;
-  border: 1px solid #e2e8f0;
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
   border-radius: 12px;
   padding: 12px 20px;
   margin-bottom: 16px;
@@ -654,19 +654,18 @@ async function handleBatchDelete() {
   align-items: center;
   justify-content: space-between;
   box-sizing: border-box;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
 .batch-info {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #475569;
+  color: #4f46e5;
   font-size: 0.95rem;
 }
 
 .batch-info strong {
-  color: #3b82f6;
+  color: #4f46e5;
 }
 
 .btn-cancel-select {
@@ -771,11 +770,7 @@ async function handleBatchDelete() {
 }
 
 .selected-row {
-  background-color: #fafafa !important;
-}
-
-.selected-row:hover {
-  background-color: #f5f5f5 !important;
+  background-color: #eef2ff !important;
 }
 
 .checkbox-cell {
@@ -937,11 +932,11 @@ async function handleBatchDelete() {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 100;
+  z-index: 9999;
   padding: 20px;
 }
 
@@ -950,7 +945,9 @@ async function handleBatchDelete() {
   border-radius: 16px;
   width: 100%;
   max-width: 420px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  position: relative;
+  z-index: 10000;
 }
 
 .modal-header {
