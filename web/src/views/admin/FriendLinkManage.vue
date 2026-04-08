@@ -1,36 +1,91 @@
 <template>
   <div class="friend-manage">
     <div class="friend-header"></div>
+    <!-- 添加友链 - 支持智能解析 -->
     <div class="friend-add">
-      <input v-model="newTitle" placeholder="网站名" class="input" />
-      <input v-model="newUrl" placeholder="网站链接" class="input" />
-      <input v-model="newLogo" placeholder="logo链接(可选)" class="input" />
-      <button class="btn" @click="addFriend">添加友链</button>
+      <input v-model="newTitle" placeholder="网站名 (留空可自动解析)" class="input" />
+      <input v-model="newUrl" placeholder="网站链接" class="input" @blur="autoParseFriend" />
+      <input v-model="newLogo" placeholder="Logo链接 (留空可自动解析)" class="input" />
+      <button class="btn" @click="addFriend" :disabled="isParsing">
+        <svg v-if="!isParsing" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 5v14M5 12h14"/>
+        </svg>
+        <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin">
+          <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
+        </svg>
+        {{ isParsing ? '解析中...' : '添加友链' }}
+      </button>
     </div>
+    <p v-if="parseError" class="parse-tip error">{{ parseError }}</p>
+    <p v-if="parseSuccess" class="parse-tip success">{{ parseSuccess }}</p>
+    
     <div class="friend-card">
       <table class="friend-table">
-        <thead><tr><th>网站名</th><th>链接</th><th>Logo</th><th>操作</th></tr></thead>
-        <tbody>
-          <tr v-for="f in friends" :key="f.id">
-            <td><input v-model="f.title" @blur="updateFriend(f)" class="input" /></td>
-            <td><input v-model="f.url" @blur="updateFriend(f)" class="input" /></td>
-            <td><input v-model="f.logo" @blur="updateFriend(f)" class="input" placeholder="logo链接(可选)" /></td>
-            <td><button class="btn btn-danger" @click="deleteFriend(f.id)">删除</button></td>
+        <thead>
+          <tr>
+            <th style="width: 50px;">排序</th>
+            <th>网站名</th>
+            <th>链接</th>
+            <th style="width: 140px;">Logo</th>
+            <th style="width: 70px;">操作</th>
           </tr>
-        </tbody>
+        </thead>
+        <draggable 
+          v-model="friends" 
+          tag="tbody" 
+          item-key="id" 
+          handle=".drag-handle"
+          ghost-class="ghost"
+          animation="200"
+          :force-fallback="true"
+          @end="onDragEnd"
+        >
+          <template #item="{ element }">
+            <tr>
+              <td class="drag-handle" title="按住拖动排序">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="2">
+                  <path d="M3 6h18M3 12h18M3 18h18"/>
+                </svg>
+              </td>
+              <td><input v-model="element.title" @blur="updateFriend(element)" class="input" /></td>
+              <td><input v-model="element.url" @blur="updateFriend(element)" class="input" /></td>
+              <td>
+                <div class="logo-cell">
+                  <img :src="element.logo || getDefaultLogo(element.url)" class="logo-preview" @error="handleLogoError" />
+                  <input v-model="element.logo" @blur="updateFriend(element)" class="input logo-input" placeholder="logo链接" />
+                </div>
+              </td>
+              <td><button class="btn btn-danger" @click="deleteFriend(element.id)">删除</button></td>
+            </tr>
+          </template>
+        </draggable>
       </table>
+      <div v-if="friends.length === 0" class="empty-state">暂无友链</div>
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue';
-import { getFriends, addFriend as apiAddFriend, updateFriend as apiUpdateFriend, deleteFriend as apiDeleteFriend } from '../../api';
+import draggable from 'vuedraggable';
+import { getFriends, addFriend as apiAddFriend, updateFriend as apiUpdateFriend, deleteFriend as apiDeleteFriend, updateFriendsOrder, parseLink } from '../../api';
 
 const friends = ref([]);
 const newTitle = ref('');
 const newUrl = ref('');
 const newLogo = ref('');
+const isParsing = ref(false);
+const parseError = ref('');
+const parseSuccess = ref('');
+
+// 获取默认 logo
+function getDefaultLogo(url) {
+  try {
+    const u = new URL(url);
+    return u.origin + '/favicon.ico';
+  } catch { return '/default-favicon.png'; }
+}
+function handleLogoError(e) { e.target.src = '/default-favicon.png'; }
 
 onMounted(loadFriends);
 
@@ -38,18 +93,61 @@ async function loadFriends() {
   const res = await getFriends();
   friends.value = res.data;
 }
+
+// 智能解析友链
+async function autoParseFriend() {
+  if (!newUrl.value.trim()) return;
+  if (newTitle.value.trim() && newLogo.value.trim()) return;
+  
+  isParsing.value = true;
+  parseError.value = '';
+  parseSuccess.value = '';
+  
+  try {
+    const res = await parseLink(newUrl.value.trim());
+    if (res.data.success) {
+      if (!newTitle.value.trim() && res.data.title) newTitle.value = res.data.title;
+      if (!newLogo.value.trim() && res.data.icon) newLogo.value = res.data.icon;
+      parseSuccess.value = res.data.message || '已自动填充';
+      setTimeout(() => { parseSuccess.value = ''; }, 3000);
+    } else {
+      if (!newLogo.value.trim() && res.data.icon) newLogo.value = res.data.icon;
+      parseError.value = res.data.message || '自动解析失败';
+      setTimeout(() => { parseError.value = ''; }, 5000);
+    }
+  } catch (err) {
+    parseError.value = '网络错误';
+    setTimeout(() => { parseError.value = ''; }, 5000);
+  } finally {
+    isParsing.value = false;
+  }
+}
+
 async function addFriend() {
-  if (!newTitle.value || !newUrl.value) return;
-  await apiAddFriend({ title: newTitle.value, url: newUrl.value, logo: newLogo.value });
+  if (!newUrl.value) return;
+  await apiAddFriend({ title: newTitle.value || '', url: newUrl.value, logo: newLogo.value || '' });
   newTitle.value = '';
   newUrl.value = '';
   newLogo.value = '';
+  parseError.value = '';
+  parseSuccess.value = '';
   loadFriends();
 }
+
 async function updateFriend(f) {
   await apiUpdateFriend(f.id, { title: f.title, url: f.url, logo: f.logo });
-  loadFriends();
 }
+
+// 拖拽排序保存
+async function onDragEnd() {
+  const sortedIds = friends.value.map(f => f.id);
+  try {
+    await updateFriendsOrder({ sortedIds });
+  } catch (e) {
+    console.error('排序保存失败', e);
+  }
+}
+
 async function deleteFriend(id) {
   await apiDeleteFriend(id);
   loadFriends();
@@ -158,6 +256,75 @@ async function deleteFriend(id) {
 .friend-table td:last-child {
   text-align: center;
   vertical-align: middle;
+}
+
+/* 拖拽排序样式 */
+.drag-handle {
+  cursor: grab;
+  text-align: center;
+  color: #999;
+}
+.drag-handle:active {
+  cursor: grabbing;
+}
+.ghost {
+  opacity: 0.4;
+  background: #f3f4f6;
+}
+
+/* Logo 单元格 */
+.logo-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.logo-preview {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  object-fit: contain;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  flex-shrink: 0;
+}
+.logo-input {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.85rem;
+}
+
+/* 解析提示 */
+.parse-tip {
+  font-size: 0.8rem;
+  margin: 8px 0;
+  padding: 6px 12px;
+  border-radius: 6px;
+  text-align: center;
+}
+.parse-tip.success {
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
+}
+.parse-tip.error {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+/* 旋转动画 */
+.spin {
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.empty-state {
+  padding: 40px;
+  text-align: center;
+  color: #9ca3af;
 }
 @media (max-width: 768px) {
   .friend-manage {
