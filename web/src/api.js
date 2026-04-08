@@ -144,30 +144,30 @@ export const deleteFriend = (id) => {
 
 // ==================== 系统设置 ====================
 export const getSettings = () => {
-  return request.get('/settings');
+  return request.get('/config');
 };
 
 export const updateSettings = (data) => {
-  return request.post('/settings', data);
+  return request.post('/config/settings', data);
 };
 
 export const getConfig = () => {
-  return request.get('/settings');
+  return request.get('/config');
 };
 
 export const updateConfig = (data) => {
-  return request.post('/settings', data);
+  return request.post('/config/settings', data);
 };
 
 // ==================== 用户相关 ====================
 export const getUserInfo = () => {
-  return request.get('/user/info');
+  return request.get('/users/info');
 };
 
 export const getLoginLogs = () => {
-  return request.get('/user/login-logs');
+  return request.get('/users/login-logs');
 };
 
 export const getUserProfile = () => {
-  return request.get('/user/info');
+  return request.get('/users/info');
 };
