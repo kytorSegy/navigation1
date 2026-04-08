@@ -1,180 +1,49 @@
 import axios from 'axios';
+const request = axios.create({ baseURL: '/api', timeout: 10000 });
+request.interceptors.request.use(config => { const token = localStorage.getItem('token'); if (token) config.headers.Authorization = `Bearer ${token}`; return config; });
+request.interceptors.response.use(response => response, error => { if (error.response?.status === 401) { localStorage.removeItem('token'); localStorage.removeItem('token_timestamp'); if (window.location.pathname !== '/admin') { window.location.href = '/admin'; } else { window.location.reload(); } } return Promise.reject(error); });
 
-const request = axios.create({
-  baseURL: '/api',
-  timeout: 10000
-});
+export const login = (username, password) => request.post('/login', { username, password });
+export const changePassword = (oldPassword, newPassword) => request.put('/users/password', { oldPassword, newPassword });
 
-// 请求拦截器 - 添加 token
-request.interceptors.request.use(config => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+export const getMenus = () => request.get('/menus');
+export const addMenu = (data) => request.post('/menus', data);
+export const updateMenu = (id, data) => request.put(`/menus/${id}`, data);
+export const deleteMenu = (id) => request.delete(`/menus/${id}`);
+export const addSubMenu = (parentId, data) => request.post(`/menus/${parentId}/submenus`, data);
+export const updateSubMenu = (id, data) => request.put(`/menus/submenus/${id}`, data);
+export const deleteSubMenu = (id) => request.delete(`/menus/submenus/${id}`);
 
-// 响应拦截器 - 处理错误
-request.interceptors.response.use(
-  response => response,
-  error => {
-    if (error.response?.status === 401) {
-      // Token 失效或未登录时，清除所有登录信息并自动跳转到登录页面
-      localStorage.removeItem('token');
-      localStorage.removeItem('token_timestamp');
-      // 自动跳转到登录页面
-      if (window.location.pathname !== '/admin') {
-        window.location.href = '/admin';
-      } else {
-        window.location.reload();
-      }
-    }
-    return Promise.reject(error);
-  }
-);
+export const getCards = (menuId, subMenuId = null) => { let url = `/cards/${menuId}`; if (subMenuId) url += `?subMenuId=${subMenuId}`; return request.get(url); };
+export const addCard = (data) => request.post('/cards', data);
+export const updateCard = (id, data) => request.put(`/cards/${id}`, data);
+export const deleteCard = (id) => request.delete(`/cards/${id}`);
+export const updateCardOrder = (data) => request.post('/cards/update-order', data);
+export const searchCards = (keyword) => request.get(`/cards/search?q=${encodeURIComponent(keyword)}`);
+export const batchMoveCards = (card_ids, target_menu_id, target_sub_menu_id) => request.post('/cards/batch-move', { card_ids, target_menu_id, target_sub_menu_id: target_sub_menu_id || null });
+export const batchDeleteCards = (card_ids) => request.post('/cards/batch-delete', { card_ids });
 
-// ==================== 认证相关 ====================
-export const login = (username, password) => {
-  return request.post('/login', { username, password });
-};
+export const getAds = () => request.get('/ads');
+export const addAd = (data) => request.post('/ads', data);
+export const updateAd = (id, data) => request.put(`/ads/${id}`, data);
+export const deleteAd = (id) => request.delete(`/ads/${id}`);
 
-export const changePassword = (oldPassword, newPassword) => {
-  return request.put('/users/password', { oldPassword, newPassword });
-};
+export const getFriends = () => request.get('/friends');
+export const addFriend = (data) => request.post('/friends', data);
+export const updateFriend = (id, data) => request.put(`/friends/${id}`, data);
+export const deleteFriend = (id) => request.delete(`/friends/${id}`);
+export const updateFriendsOrder = (data) => request.post('/friends/update-order', data);
 
-// ==================== 菜单相关 ====================
-export const getMenus = () => {
-  return request.get('/menus');
-};
+export const getSettings = () => request.get('/config');
+export const updateSettings = (data) => request.post('/config/settings', data);
+export const getConfig = () => request.get('/config');
+export const updateConfig = (data) => request.post('/config/settings', data);
 
-export const addMenu = (name) => {
-  return request.post('/menus', { name });
-};
+export const getUserInfo = () => request.get('/users/profile');
+export const getLoginLogs = () => request.get('/users/me');
+export const getUserProfile = () => request.get('/users/profile');
 
-export const updateMenu = (id, name) => {
-  return request.put(`/menus/${id}`, { name });
-};
+export const parseLink = (url) => request.get(`/parse-link?url=${encodeURIComponent(url)}`);
 
-export const deleteMenu = (id) => {
-  return request.delete(`/menus/${id}`);
-};
-
-export const addSubMenu = (parentId, name) => {
-  return request.post(`/menus/${parentId}/submenus`, { name });
-};
-
-export const updateSubMenu = (id, name) => {
-  return request.put(`/menus/submenus/${id}`, { name });
-};
-
-export const deleteSubMenu = (id) => {
-  return request.delete(`/menus/submenus/${id}`);
-};
-
-// ==================== 卡片相关 ====================
-export const getCards = (menuId, subMenuId = null) => {
-  let url = `/cards/${menuId}`;
-  if (subMenuId) {
-    url += `?subMenuId=${subMenuId}`;
-  }
-  return request.get(url);
-};
-
-export const addCard = (data) => {
-  return request.post('/cards', data);
-};
-
-export const updateCard = (id, data) => {
-  return request.put(`/cards/${id}`, data);
-};
-
-export const deleteCard = (id) => {
-  return request.delete(`/cards/${id}`);
-};
-
-export const updateCardOrder = (data) => {
-  return request.post('/cards/update-order', data);
-};
-
-// ✅ 搜索卡片
-export const searchCards = (keyword) => {
-  return request.get(`/cards/search?q=${encodeURIComponent(keyword)}`);
-};
-
-// ✅ 批量移动卡片
-export const batchMoveCards = (card_ids, target_menu_id, target_sub_menu_id) => {
-  return request.post('/cards/batch-move', { 
-    card_ids, 
-    target_menu_id, 
-    target_sub_menu_id: target_sub_menu_id || null 
-  });
-};
-
-// ✅ 批量删除卡片
-export const batchDeleteCards = (card_ids) => {
-  return request.post('/cards/batch-delete', { card_ids });
-};
-
-// ==================== 广告相关 ====================
-export const getAds = () => {
-  return request.get('/ads');
-};
-
-export const addAd = (data) => {
-  return request.post('/ads', data);
-};
-
-export const updateAd = (id, data) => {
-  return request.put(`/ads/${id}`, data);
-};
-
-export const deleteAd = (id) => {
-  return request.delete(`/ads/${id}`);
-};
-
-// ==================== 友链相关 ====================
-export const getFriends = () => {
-  return request.get('/friends');
-};
-
-export const addFriend = (data) => {
-  return request.post('/friends', data);
-};
-
-export const updateFriend = (id, data) => {
-  return request.put(`/friends/${id}`, data);
-};
-
-export const deleteFriend = (id) => {
-  return request.delete(`/friends/${id}`);
-};
-
-// ==================== 系统设置 ====================
-export const getSettings = () => {
-  return request.get('/config');
-};
-
-export const updateSettings = (data) => {
-  return request.post('/config/settings', data);
-};
-
-export const getConfig = () => {
-  return request.get('/config');
-};
-
-export const updateConfig = (data) => {
-  return request.post('/config/settings', data);
-};
-
-// ==================== 用户相关 ====================
-export const getUserInfo = () => {
-  return request.get('/users/profile');
-};
-
-export const getLoginLogs = () => {
-  return request.get('/users/me');
-};
-
-export const getUserProfile = () => {
-  return request.get('/users/profile');
-};
+export const updateMenusOrder = (data) => request.post('/menus/update-order', data);
+export const updateSubMenusOrder = (menuId, data) => request.post(`/menus/${menuId}/submenus/update-order`, data);
