@@ -644,8 +644,8 @@ async function handleBatchDelete() {
 
 /* 批量操作栏 */
 .batch-operations {
-  background: #eef2ff;
-  border: 1px solid #c7d2fe;
+  background: #fff;
+  border: 1px solid #e2e8f0;
   border-radius: 12px;
   padding: 12px 20px;
   margin-bottom: 16px;
@@ -654,14 +654,19 @@ async function handleBatchDelete() {
   align-items: center;
   justify-content: space-between;
   box-sizing: border-box;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
 .batch-info {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #4f46e5;
+  color: #475569;
   font-size: 0.95rem;
+}
+
+.batch-info strong {
+  color: #3b82f6;
 }
 
 .btn-cancel-select {
@@ -766,7 +771,11 @@ async function handleBatchDelete() {
 }
 
 .selected-row {
-  background-color: #eef2ff !important;
+  background-color: #fafafa !important;
+}
+
+.selected-row:hover {
+  background-color: #f5f5f5 !important;
 }
 
 .checkbox-cell {
