@@ -3,7 +3,6 @@
 
     <div class="bg-placeholder"></div>
 
-    <!-- 视频背景 -->
     <video
       v-if="shouldShowVideo"
       class="bg-video"
@@ -19,10 +18,10 @@
       @canplay="onVideoCanPlay"
       @loadeddata="onVideoLoadedData"
       @error="onVideoError"
+      @ended="onVideoEnded" 
       :poster="transparentPixel"
     ></video>
 
-    <!-- 图片背景（仅当 URL 确实是图片时才显示，不用于视频降级） -->
     <div
       v-if="shouldShowImage"
       class="bg-image"
@@ -30,7 +29,6 @@
       :style="customBackground ? { backgroundImage: `url('${customBackground}')` } : {}"
     ></div>
 
-    <!-- 移动端触屏播放提示 -->
     <div v-if="needsInteraction && isBgLoaded" class="tap-to-play-hint" @click="forcePlay">
       轻触屏幕播放动态壁纸
     </div>
@@ -83,7 +81,6 @@
       </footer>
     </div>
 
-    <!-- 友链弹窗 -->
     <div v-if="showFriendLinks" class="modal-overlay" @click="showFriendLinks = false">
       <div class="modal-content modal-bottom-sheet" @click.stop>
         <div class="modal-header">
@@ -104,7 +101,6 @@
       </div>
     </div>
 
-    <!-- 壁纸设置弹窗 -->
     <div v-if="showThemeSettings" class="modal-overlay" @click="showThemeSettings = false">
       <div class="modal-content theme-modal modal-bottom-sheet" @click.stop>
         <div class="modal-header">
@@ -201,6 +197,26 @@ function onVideoError() {
   videoFailed.value = true;
   isBgLoaded.value = true;
 }
+
+// [修改处 2] 新增视频结束事件处理函数，用于强制循环播放
+// 当原生 loop 失效，视频播放到底时会触发这个方法
+function onVideoEnded() {
+  const video = bgVideoRef.value;
+  if (video) {
+    // 将视频的当前时间重置为 0 秒（回到开头）
+    video.currentTime = 0;
+    // 再次调用播放方法
+    const p = video.play();
+    if (p && p.catch) {
+      p.catch(err => {
+        // 如果重播失败，打印警告并启动降级处理
+        console.warn('[Video] 循环播放失败', err);
+        videoFailed.value = true;
+      });
+    }
+  }
+}
+
 function attemptPlay() {
   const video = bgVideoRef.value;
   if (!video) return;
