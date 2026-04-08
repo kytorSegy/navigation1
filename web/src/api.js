@@ -19,8 +19,15 @@ request.interceptors.response.use(
   response => response,
   error => {
     if (error.response?.status === 401) {
+      // Token 失效或未登录时，清除所有登录信息并自动跳转到登录页面
       localStorage.removeItem('token');
-      window.location.href = '/admin';
+      localStorage.removeItem('token_timestamp');
+      // 自动跳转到登录页面
+      if (window.location.pathname !== '/admin') {
+        window.location.href = '/admin';
+      } else {
+        window.location.reload();
+      }
     }
     return Promise.reject(error);
   }
