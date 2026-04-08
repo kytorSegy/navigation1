@@ -3,6 +3,18 @@ const db = require('../db');
 const auth = require('./authMiddleware');
 const router = express.Router();
 
+// 批量更新友链排序
+router.post('/update-order', auth, (req, res) => {
+  const { sortedIds } = req.body;
+  if (!Array.isArray(sortedIds)) return res.status(400).json({ message: '参数错误' });
+  db.serialize(() => {
+    sortedIds.forEach((id, index) => {
+      db.run('UPDATE friends SET "order"=? WHERE id=?', [index, id]);
+    });
+  });
+  res.json({ message: '排序已保存' });
+});
+
 // 获取友链
 router.get('/', (req, res) => {
   const { page, pageSize } = req.query;

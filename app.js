@@ -13,6 +13,7 @@ const authRoutes = require('./routes/auth');
 const adRoutes = require('./routes/ad');
 const friendRoutes = require('./routes/friend');
 const userRoutes = require('./routes/user');
+const parseRoutes = require('./routes/parse');
 const compression = require('compression');
 
 const http = require('http');
@@ -63,6 +64,7 @@ app.use('/api', authRoutes);
 app.use('/api/ads', adRoutes);
 app.use('/api/friends', friendRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/parse-link', parseRoutes);
 
 app.get('/api/background', (req, res) => {
   const bgUrl = req.query.url; 

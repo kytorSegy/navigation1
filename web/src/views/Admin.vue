@@ -93,18 +93,22 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { login } from '../api';
 import MenuManage from './admin/MenuManage.vue';
 import CardManage from './admin/CardManage.vue';
 import AdManage from './admin/AdManage.vue';
 import FriendLinkManage from './admin/FriendLinkManage.vue';
-import SystemManage from './admin/SystemManage.vue'; // 引入新建的系统配置组件
+import SystemManage from './admin/SystemManage.vue';
 import UserManage from './admin/UserManage.vue';
 
 const page = ref('welcome');
-const lastLoginTime = ref('');
-const lastLoginIp = ref('');
+
+// [优化核心 1]：初始化时，优先尝试从浏览器的 localStorage（本地硬盘仓库）里读取。
+// 这样即使刷新网页或关掉重开，只要缓存还在，界面就能立刻显示信息，不再白板或闪烁。
+const lastLoginTime = ref(localStorage.getItem('admin_last_login_time') || '');
+const lastLoginIp = ref(localStorage.getItem('admin_last_login_ip') || '');
+
 const isLoggedIn = ref(false);
 const username = ref('');
 const password = ref('');
@@ -119,17 +123,60 @@ const pageTitle = computed(() => {
     case 'card': return '卡片管理';
     case 'ad': return '广告管理';
     case 'friend': return '友链管理';
-    case 'system': return '系统全局设置'; // 配置对应的标题
+    case 'system': return '系统全局设置';
     case 'user': return '用户管理';
     default: return '';
   }
 });
 
-onMounted(() => {
+// 检查登录状态并验证3天有效期
+function checkLoginStatus() {
   const token = localStorage.getItem('token');
-  isLoggedIn.value = !!token;
-  if (isLoggedIn.value) {
+  const tokenTimestamp = localStorage.getItem('token_timestamp');
+  
+  if (token && tokenTimestamp) {
+    const now = Date.now();
+    const threeDays = 3 * 24 * 60 * 60 * 1000;
+    if (now - parseInt(tokenTimestamp) > threeDays) {
+      // Token 过期，清除并跳转到登录页
+      logout();
+      return false;
+    }
+    isLoggedIn.value = true;
+    return true;
+  } else if (token) {
+    // 兼容旧版：有 token 但没有时间戳，设置时间戳
+    localStorage.setItem('token_timestamp', Date.now().toString());
+    isLoggedIn.value = true;
+    return true;
+  }
+  isLoggedIn.value = false;
+  return false;
+}
+
+// 未登录时自动跳转到登录页面
+function redirectToLogin() {
+  if (!isLoggedIn.value) {
+    page.value = 'welcome';
+  }
+}
+
+onMounted(() => {
+  const loggedIn = checkLoginStatus();
+  if (loggedIn) {
+    // 即使我们从本地读取了缓存，这里依然会去后端拉取最新信息
+    // 保证如果有其他设备登录导致数据变化，也能静默同步更新。
     fetchLastLoginInfo();
+  } else {
+    // 未登录时自动跳转到登录页面
+    redirectToLogin();
+  }
+});
+
+// 监听登录状态变化，自动跳转
+watch(isLoggedIn, (newVal) => {
+  if (!newVal) {
+    redirectToLogin();
   }
 });
 
@@ -138,8 +185,19 @@ async function fetchLastLoginInfo() {
     const res = await fetch('/api/users/me', { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
     if (res.ok) {
       const data = await res.json();
-      lastLoginTime.value = data.last_login_time || '';
-      lastLoginIp.value = data.lastLoginIp || '';
+      
+      // [优化核心 2]：服务端拉取到数据后，不但更新页面变量，还要同步存入 localStorage 持久化
+      if (data.last_login_time) {
+        lastLoginTime.value = data.last_login_time;
+        localStorage.setItem('admin_last_login_time', data.last_login_time);
+      }
+      
+      // 兼容后端可能返回的驼峰或下划线命名
+      const ip = data.lastLoginIp || data.last_login_ip;
+      if (ip) {
+        lastLoginIp.value = ip;
+        localStorage.setItem('admin_last_login_ip', ip);
+      }
     }
   } catch (error) {
     console.error('获取用户信息失败:', error);
@@ -159,9 +217,19 @@ async function handleLogin() {
     const response = await login(username.value, password.value);
     if (response.data.token) {
       localStorage.setItem('token', response.data.token);
+      // 记录登录时间戳，用于3天有效期检查
+      localStorage.setItem('token_timestamp', Date.now().toString());
       isLoggedIn.value = true;
-      lastLoginTime.value = response.data.lastLoginTime || '';
-      lastLoginIp.value = response.data.lastLoginIp || '';
+      
+      // [优化核心 3]：用户手动登录成功时，第一时间拦截到时间与IP并双向保存
+      const time = response.data.lastLoginTime || response.data.last_login_time || '';
+      const ip = response.data.lastLoginIp || response.data.last_login_ip || '';
+      
+      lastLoginTime.value = time;
+      lastLoginIp.value = ip;
+      
+      if (time) localStorage.setItem('admin_last_login_time', time);
+      if (ip) localStorage.setItem('admin_last_login_ip', ip);
     }
   } catch (error) {
     loginError.value = error.response?.data?.message || '登录失败，请检查用户名和密码';
@@ -172,10 +240,21 @@ async function handleLogin() {
 
 function logout() {
   localStorage.removeItem('token');
+  localStorage.removeItem('token_timestamp');
+  
+  // [优化核心 4]：退出登录时，为了保护隐私，一定要把本地缓存的IP和时间清空
+  localStorage.removeItem('admin_last_login_time');
+  localStorage.removeItem('admin_last_login_ip');
+  lastLoginTime.value = '';
+  lastLoginIp.value = '';
+  
   isLoggedIn.value = false;
   username.value = '';
   password.value = '';
   loginError.value = '';
+  page.value = 'welcome';
+  // 自动跳转到登录页面
+  redirectToLogin();
 }
 
 function goHome() {
@@ -190,7 +269,7 @@ function closeSider() {
 </script>
 
 <style scoped>
-/* 这里的原 CSS 不变，直接粘贴原有 CSS 代码即可 */
+/* 这里的 CSS 保持原样，未做任何修改以确保界面样式稳定 */
 .login-container {
   display: flex;
   justify-content: center;

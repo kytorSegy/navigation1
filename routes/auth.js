@@ -42,7 +42,8 @@ router.post('/login', (req, res) => {
         const now = getShanghaiTime();
         const ip = getClientIp(req);
         db.run('UPDATE users SET last_login_time=?, last_login_ip=? WHERE id=?', [now, ip, user.id]);
-        const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '24h' });
+        // 登录有效期改为3天
+        const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '3d' });
         res.json({ token, lastLoginTime, lastLoginIp });
       } else {
         res.status(401).json({ error: '用户名或密码错误' });
