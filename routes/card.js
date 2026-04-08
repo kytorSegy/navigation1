@@ -3,16 +3,23 @@ const db = require('../db');
 const auth = require('./authMiddleware');
 const router = express.Router();
 
-// ✅ [新增] 全站搜索接口 —— 必须放在 /:menuId 路由之前
+// ✅ 全站搜索接口 —— 必须放在 /:menuId 路由之前
 router.get('/search', (req, res) => {
   const { q } = req.query;
   if (!q || !q.trim()) return res.json([]);
 
   const keyword = `%${q.trim()}%`;
   const query = `
-    SELECT * FROM cards 
-    WHERE title LIKE ? OR url LIKE ? OR desc LIKE ? 
-    ORDER BY "order"
+    SELECT 
+      c.*,
+      m.name as menu_name,
+      sm.name as sub_menu_name,
+      sm.parent_id as sub_menu_parent_id
+    FROM cards c
+    LEFT JOIN menus m ON c.menu_id = m.id
+    LEFT JOIN sub_menus sm ON c.sub_menu_id = sm.id
+    WHERE c.title LIKE ? OR c.url LIKE ? OR c.desc LIKE ? 
+    ORDER BY c."order"
   `;
 
   db.all(query, [keyword, keyword, keyword], (err, rows) => {
@@ -82,23 +89,18 @@ router.delete('/:id', auth, (req, res) => {
   });
 });
 
-// ✅ [核心新增] 批量更新卡片排序接口
-// 前端拖拽完成后，会将重新排好序的卡片ID数组发送到这里
+// ✅ 批量更新卡片排序接口
 router.post('/update-order', auth, (req, res) => {
-  const { sortedIds } = req.body; // 接收包含 ID 的数组
+  const { sortedIds } = req.body;
   
-  // 检查前端传来的数据是否为数组
   if (!Array.isArray(sortedIds)) {
     return res.status(400).json({ message: '参数错误，需要数组格式' });
   }
 
-  // 开启数据库事务，确保批量更新要么全部成功，要么全部失败
   db.serialize(() => {
     db.run('BEGIN TRANSACTION');
-    // 准备更新语句：根据卡片ID更新它的 order 值
     const stmt = db.prepare('UPDATE cards SET "order" = ? WHERE id = ?');
     
-    // 遍历数组，数组的索引(index)就是它新的排序值（越小越靠前）
     sortedIds.forEach((id, index) => {
       stmt.run(index, id);
     });
@@ -109,6 +111,58 @@ router.post('/update-order', auth, (req, res) => {
         return res.status(500).json({ error: '保存排序失败' });
       }
       res.json({ message: '排序更新成功' });
+    });
+  });
+});
+
+// ✅ 批量移动卡片到其他菜单
+router.post('/batch-move', auth, (req, res) => {
+  const { card_ids, target_menu_id, target_sub_menu_id } = req.body;
+  
+  if (!card_ids || !Array.isArray(card_ids) || card_ids.length === 0) {
+    return res.status(400).json({ error: '请选择要移动的卡片' });
+  }
+
+  const placeholders = card_ids.map(() => '?').join(',');
+  
+  const query = `
+    UPDATE cards 
+    SET menu_id = ?, sub_menu_id = ? 
+    WHERE id IN (${placeholders})
+  `;
+  
+  const params = [
+    target_sub_menu_id ? null : target_menu_id,
+    target_sub_menu_id || null,
+    ...card_ids
+  ];
+
+  db.run(query, params, function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ 
+      success: true, 
+      moved_count: this.changes,
+      message: `成功移动 ${this.changes} 张卡片` 
+    });
+  });
+});
+
+// ✅ 批量删除卡片
+router.post('/batch-delete', auth, (req, res) => {
+  const { card_ids } = req.body;
+  
+  if (!card_ids || !Array.isArray(card_ids) || card_ids.length === 0) {
+    return res.status(400).json({ error: '请选择要删除的卡片' });
+  }
+
+  const placeholders = card_ids.map(() => '?').join(',');
+  const query = `DELETE FROM cards WHERE id IN (${placeholders})`;
+
+  db.run(query, card_ids, function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ 
+      success: true, 
+      message: `成功删除 ${this.changes} 张卡片` 
     });
   });
 });
