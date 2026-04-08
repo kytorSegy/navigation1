@@ -16,94 +16,121 @@
     </div>
     
     <div class="menu-content">
-      <div class="menu-list">
-        <div v-for="menu in menus" :key="menu.id" class="menu-item">
-          <!-- 主菜单 -->
-          <div class="main-menu">
-            <div class="menu-info">
-              <div class="menu-icon">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M3 3h18v18H3zM9 9h6v6H9z"/>
-                </svg>
-              </div>
-              <input v-model="menu.name" @blur="updateMenu(menu)" class="menu-name-input" />
-              <div class="menu-order">
-                <span class="order-label">排序</span>
-                <input v-model.number="menu.order" type="number" @blur="updateMenu(menu)" class="order-input" />
-              </div>
-            </div>
-            <div class="menu-actions">
-              <button class="btn btn-icon expand-btn" @click="toggleSubMenu(menu.id)" :title="menu.showSubMenu ? '收起子菜单' : '展开子菜单'">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="m6 9 6 6 6-6"/>
-                </svg>
-              </button>
-              <button class="btn btn-danger btn-icon" @click="deleteMenu(menu.id)" title="删除主菜单">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>
-                  <path d="M10 11v6M14 11v6"/>
-                </svg>
-              </button>
-            </div>
-          </div>
-          
-          <!-- 子菜单区域 -->
-          <div class="sub-menu-section" :class="{ 'expanded': menu.showSubMenu }">
-            <div class="sub-menu-header">
-              <div class="sub-menu-title">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M9 11H1l8-8 8 8h-8v8z"/>
-                </svg>
-                子菜单 ({{ menu.subMenus?.length || 0 }})
-              </div>
-              <button class="btn btn-sm btn-outline" @click="addSubMenu(menu.id)">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M12 5v14M5 12h14"/>
-                </svg>
-                添加子菜单
-              </button>
-            </div>
-            
-            <div class="sub-menu-list" v-if="menu.subMenus && menu.subMenus.length > 0">
-              <div v-for="subMenu in menu.subMenus" :key="subMenu.id" class="sub-menu-item">
-                <div class="sub-menu-info">
-                  <div class="sub-menu-icon">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M4 6h16M4 12h16M4 18h16"/>
-                    </svg>
-                  </div>
-                  <input v-model="subMenu.name" @blur="updateSubMenu(subMenu)" class="sub-menu-name-input" />
-                  <div class="sub-menu-order">
-                    <input v-model.number="subMenu.order" type="number" @blur="updateSubMenu(subMenu)" class="order-input" />
-                  </div>
+      <!-- 主菜单拖拽列表 -->
+      <draggable 
+        v-model="menus" 
+        tag="div" 
+        class="menu-list"
+        item-key="id" 
+        handle=".menu-drag-handle"
+        ghost-class="ghost"
+        animation="200"
+        :force-fallback="true"
+        @end="onMenuDragEnd"
+      >
+        <template #item="{ element: menu }">
+          <div class="menu-item">
+            <!-- 主菜单 -->
+            <div class="main-menu">
+              <div class="menu-info">
+                <div class="menu-drag-handle" title="拖动排序">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="2">
+                    <path d="M3 6h18M3 12h18M3 18h18"/>
+                  </svg>
                 </div>
-                <div class="sub-menu-actions">
-                  <button class="btn btn-danger btn-icon btn-sm" @click="deleteSubMenu(subMenu.id)" title="删除子菜单">
-                    <svg width="14" height="14" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>
-                      <path d="M10 11v6M14 11v6"/>
-                    </svg>
-                  </button>
+                <div class="menu-icon">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 3h18v18H3zM9 9h6v6H9z"/>
+                  </svg>
                 </div>
+                <input v-model="menu.name" @blur="updateMenu(menu)" class="menu-name-input" />
+              </div>
+              <div class="menu-actions">
+                <button class="btn btn-icon expand-btn" @click="toggleSubMenu(menu.id)" :title="menu.showSubMenu ? '收起子菜单' : '展开子菜单'">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="m6 9 6 6 6-6"/>
+                  </svg>
+                </button>
+                <button class="btn btn-danger btn-icon" @click="deleteMenu(menu.id)" title="删除主菜单">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>
+                    <path d="M10 11v6M14 11v6"/>
+                  </svg>
+                </button>
               </div>
             </div>
             
-            <div v-else class="empty-sub-menu">
-              <!-- <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
-              <path d="M9 11H1l8-8 8 8h-8v8z"/>
-              </svg> -->
-              <p>暂无子菜单</p>
-              <button class="btn btn-sm btn-outline" @click="addSubMenu(menu.id)">添加第一个子菜单</button>
+            <!-- 子菜单区域 - 也可拖拽 -->
+            <div class="sub-menu-section" :class="{ 'expanded': menu.showSubMenu }">
+              <div class="sub-menu-header">
+                <div class="sub-menu-title">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 11H1l8-8 8 8h-8v8z"/>
+                  </svg>
+                  子菜单 ({{ menu.subMenus?.length || 0 }})
+                </div>
+                <button class="btn btn-sm btn-outline" @click="addSubMenu(menu.id)">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 5v14M5 12h14"/>
+                  </svg>
+                  添加子菜单
+                </button>
+              </div>
+              
+              <draggable 
+                v-if="menu.subMenus && menu.subMenus.length > 0"
+                v-model="menu.subMenus"
+                tag="div"
+                class="sub-menu-list"
+                item-key="id"
+                handle=".sub-drag-handle"
+                ghost-class="sub-ghost"
+                animation="200"
+                :force-fallback="true"
+                @end="() => onSubMenuDragEnd(menu.id)"
+              >
+                <template #item="{ element: subMenu }">
+                  <div class="sub-menu-item">
+                    <div class="sub-menu-info">
+                      <div class="sub-drag-handle" title="拖动排序">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="2">
+                          <path d="M3 6h18M3 12h18M3 18h18"/>
+                        </svg>
+                      </div>
+                      <div class="sub-menu-icon">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M4 6h16M4 12h16M4 18h16"/>
+                        </svg>
+                      </div>
+                      <input v-model="subMenu.name" @blur="updateSubMenu(subMenu)" class="sub-menu-name-input" />
+                    </div>
+                    <div class="sub-menu-actions">
+                      <button class="btn btn-danger btn-icon btn-sm" @click="deleteSubMenu(subMenu.id)" title="删除子菜单">
+                        <svg width="14" height="14" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>
+                          <path d="M10 11v6M14 11v6"/>
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </template>
+              </draggable>
+              
+              <div v-else class="empty-sub-menu">
+                <p>暂无子菜单</p>
+                <button class="btn btn-sm btn-outline" @click="addSubMenu(menu.id)">添加第一个子菜单</button>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
+        </template>
+      </draggable>
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue';
+import draggable from 'vuedraggable';
 import { 
   getMenus, 
   addMenu as apiAddMenu, 
@@ -111,7 +138,9 @@ import {
   deleteMenu as apiDeleteMenu,
   addSubMenu as apiAddSubMenu,
   updateSubMenu as apiUpdateSubMenu,
-  deleteSubMenu as apiDeleteSubMenu
+  deleteSubMenu as apiDeleteSubMenu,
+  updateMenusOrder,
+  updateSubMenusOrder
 } from '../../api';
 
 const menus = ref([]);
@@ -176,6 +205,28 @@ function toggleSubMenu(menuId) {
   const menu = menus.value.find(m => m.id === menuId);
   if (menu) {
     menu.showSubMenu = !menu.showSubMenu;
+  }
+}
+
+// 主菜单拖拽排序保存
+async function onMenuDragEnd() {
+  const sortedIds = menus.value.map(m => m.id);
+  try {
+    await updateMenusOrder({ sortedIds });
+  } catch (e) {
+    console.error('菜单排序保存失败', e);
+  }
+}
+
+// 子菜单拖拽排序保存
+async function onSubMenuDragEnd(menuId) {
+  const menu = menus.value.find(m => m.id === menuId);
+  if (!menu || !menu.subMenus) return;
+  const sortedIds = menu.subMenus.map(s => s.id);
+  try {
+    await updateSubMenusOrder(menuId, { sortedIds });
+  } catch (e) {
+    console.error('子菜单排序保存失败', e);
   }
 }
 </script>
@@ -320,6 +371,29 @@ function toggleSubMenu(menuId) {
   outline: none;
   border-color: #667eea;
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+/* 拖拽排序样式 */
+.menu-drag-handle, .sub-drag-handle {
+  cursor: grab;
+  display: flex;
+  align-items: center;
+  color: #999;
+  padding: 4px;
+  margin-right: 4px;
+}
+.menu-drag-handle:active, .sub-drag-handle:active {
+  cursor: grabbing;
+}
+.ghost {
+  opacity: 0.5;
+  background: #f1f5f9;
+  border: 2px dashed #667eea;
+}
+.sub-ghost {
+  opacity: 0.5;
+  background: #f0fdf4;
+  border: 2px dashed #10b981;
 }
 
 .menu-actions {
