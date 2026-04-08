@@ -374,6 +374,9 @@ async function onSubMenuDragEnd(menuId) {
 }
 
 /* 拖拽排序样式 */
+/* ============================ */
+/* 拖拽排序样式 - 新增禁用文本选中 */
+/* ============================ */
 .menu-drag-handle, .sub-drag-handle {
   cursor: grab;
   display: flex;
@@ -381,10 +384,19 @@ async function onSubMenuDragEnd(menuId) {
   color: #999;
   padding: 4px;
   margin-right: 4px;
+  /* 禁用用户选中文本核心属性 */
+  user-select: none;
+  -webkit-user-select: none;
 }
 .menu-drag-handle:active, .sub-drag-handle:active {
   cursor: grabbing;
 }
+/* 对拖拽中产生的占位符和当前被拖拽的实体施加严格的防选中 */
+.ghost, .sub-ghost, .sortable-drag, .sortable-chosen {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+}
+
 .ghost {
   opacity: 0.5;
   background: #f1f5f9;
