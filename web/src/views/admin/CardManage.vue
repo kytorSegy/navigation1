@@ -48,6 +48,12 @@
           <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
         </svg>
         <span>已选择 <strong>{{ selectedCards.size }}</strong> 张卡片</span>
+        <button class="btn-cancel-select" @click="clearSelection" title="取消选择">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 6L6 18M6 6l12 12"/>
+          </svg>
+          取消选择
+        </button>
       </div>
       <div class="batch-actions">
         <button class="btn btn-move" @click="showMoveModal = true">
@@ -369,6 +375,10 @@ function toggleAllSelection() {
   }
 }
 
+function clearSelection() {
+  selectedCards.value = new Set();
+}
+
 // 获取Logo
 function getLogo(card) {
   if (card.custom_logo_path) {
@@ -505,7 +515,7 @@ async function handleBatchDelete() {
 <style scoped>
 .card-manage {
   max-width: 1200px;
-  width: 95%;
+  width: 100%;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -519,8 +529,9 @@ async function handleBatchDelete() {
   margin-bottom: 20px;
   color: white;
   box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
-  width: 95%;
+  width: 100%;
   text-align: center;
+  box-sizing: border-box;
 }
 
 .header-content {
@@ -541,12 +552,16 @@ async function handleBatchDelete() {
   gap: 10px;
   justify-content: center;
   margin-bottom: 15px;
+  width: 100%;
+  max-width: 500px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .search-input-wrapper {
   position: relative;
   flex: 1;
-  max-width: 400px;
+  min-width: 0;
 }
 
 .search-icon {
@@ -555,16 +570,18 @@ async function handleBatchDelete() {
   top: 50%;
   transform: translateY(-50%);
   color: #999;
+  pointer-events: none;
 }
 
 .search-input {
   width: 100%;
-  padding: 10px 36px;
+  padding: 10px 36px 10px 36px;
   border-radius: 8px;
   border: 1px solid rgba(255,255,255,0.3);
   background: rgba(255,255,255,0.15);
   color: white;
   font-size: 0.9rem;
+  box-sizing: border-box;
 }
 
 .search-input::placeholder {
@@ -587,6 +604,9 @@ async function handleBatchDelete() {
   color: rgba(255,255,255,0.7);
   cursor: pointer;
   padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .clear-btn:hover {
@@ -596,6 +616,8 @@ async function handleBatchDelete() {
 .search-btn {
   background: white;
   color: #667eea;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .search-btn:hover {
@@ -631,6 +653,7 @@ async function handleBatchDelete() {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  box-sizing: border-box;
 }
 
 .batch-info {
@@ -639,6 +662,25 @@ async function handleBatchDelete() {
   gap: 8px;
   color: #4f46e5;
   font-size: 0.95rem;
+}
+
+.btn-cancel-select {
+  background: none;
+  border: 1px solid #4f46e5;
+  color: #4f46e5;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s;
+}
+
+.btn-cancel-select:hover {
+  background: #4f46e5;
+  color: white;
 }
 
 .batch-actions {
@@ -662,6 +704,7 @@ async function handleBatchDelete() {
   margin-bottom: 16px;
   width: 100%;
   box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  box-sizing: border-box;
 }
 
 .filter-row {
@@ -683,6 +726,7 @@ async function handleBatchDelete() {
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
   overflow: hidden;
   width: 100%;
+  box-sizing: border-box;
 }
 
 .card-table {
@@ -769,6 +813,7 @@ async function handleBatchDelete() {
   color: #222;
   font-size: 0.9rem;
   transition: all 0.2s ease;
+  box-sizing: border-box;
 }
 
 .input.narrow {
@@ -780,7 +825,8 @@ async function handleBatchDelete() {
 }
 
 .input.wide {
-  width: 200px;
+  flex: 1;
+  min-width: 150px;
 }
 
 .input:focus {
@@ -798,6 +844,7 @@ async function handleBatchDelete() {
   color: #222;
   font-size: 0.85rem;
   transition: all 0.2s ease;
+  box-sizing: border-box;
 }
 
 .table-input:focus {
@@ -972,20 +1019,30 @@ async function handleBatchDelete() {
 
 @media (max-width: 768px) {
   .card-manage {
-    width: 94%;
+    width: 100%;
+    padding: 16px;
+  }
+  
+  .card-header {
     padding: 16px;
   }
   
   .card-card {
-    padding: 16px 12px;
+    border-radius: 12px;
   }
   
   .search-bar {
     flex-direction: column;
+    max-width: none;
   }
   
   .search-input-wrapper {
-    max-width: none;
+    width: 100%;
+  }
+  
+  .search-btn {
+    width: 100%;
+    justify-content: center;
   }
   
   .filter-row,
@@ -1002,6 +1059,12 @@ async function handleBatchDelete() {
   .batch-operations {
     flex-direction: column;
     gap: 12px;
+    padding: 12px 16px;
+  }
+  
+  .batch-info {
+    flex-wrap: wrap;
+    justify-content: center;
   }
   
   .batch-actions {
@@ -1011,6 +1074,17 @@ async function handleBatchDelete() {
   .batch-actions .btn {
     flex: 1;
     justify-content: center;
+  }
+  
+  .card-table th,
+  .card-table td {
+    padding: 6px 8px;
+    font-size: 0.8rem;
+  }
+  
+  .table-input {
+    font-size: 0.8rem;
+    padding: 6px 4px;
   }
 }
 </style>
