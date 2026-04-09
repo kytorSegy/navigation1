@@ -5,6 +5,7 @@ const fs = require('fs');
 const config = require('./config');
 const db = require('./db');
 const authMiddleware = require('./routes/authMiddleware');
+const r2 = require('./routes/r2sync');
 
 const menuRoutes = require('./routes/menu');
 const cardRoutes = require('./routes/card');
@@ -22,16 +23,33 @@ const crypto = require('crypto');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-
-// 【核心改动】统一存储路径
-const UPLOAD_DIR = config.storage.uploadDir; // /app/database/uploads
+const UPLOAD_DIR = config.storage.uploadDir;
 
 app.use(cors());
 app.use(express.json());
 app.use(compression());
 
-// 【核心改动】静态文件服务指向统一存储目录
-app.use('/uploads', express.static(UPLOAD_DIR));
+// =================================================================
+// /uploads 静态服务 + R2 回源中间件
+// 本地有文件 -> 直接返回
+// 本地无文件 + R2 已启用 -> 从 R2 拉取并缓存到本地，再返回
+// =================================================================
+app.use('/uploads', async (req, res, next) => {
+  const localPath = path.join(UPLOAD_DIR, req.path);
+  if (fs.existsSync(localPath)) {
+    return next(); // 本地有，直接走 express.static
+  }
+  // 本地没有，尝试从 R2 拉取
+  if (r2.isR2Enabled()) {
+    const r2Key = 'uploads' + req.path; // 如 "uploads/bg_xxx.jpg"
+    const ok = await r2.downloadFromR2(r2Key, localPath);
+    if (ok) {
+      return res.sendFile(localPath);
+    }
+  }
+  next(); // 都没有，让 express.static 返回 404
+}, express.static(UPLOAD_DIR));
+
 app.use(express.static(path.join(__dirname, 'web/dist'), { index: false }));
 
 const sendIndexHtml = (res) => {
@@ -65,25 +83,31 @@ app.use('/api/users', userRoutes);
 app.use('/api/parse-link', parseRoutes);
 
 // =================================================================
-// 【改动】网络壁纸代理与缓存 - 统一到 /app/database/uploads
+// R2 状态查询接口
+// =================================================================
+app.get('/api/r2/status', authMiddleware, (req, res) => {
+  res.json({
+    enabled: r2.isR2Enabled(),
+    bucket: config.r2.bucketName || null,
+    publicDomain: config.r2.publicDomain || null,
+  });
+});
+
+// =================================================================
+// 网络壁纸代理与缓存 + R2 双写
 // =================================================================
 app.get('/api/background', (req, res) => {
   const bgUrl = req.query.url;
-
   if (!bgUrl || !bgUrl.startsWith('http')) {
     return res.status(404).send('未配置网络壁纸链接或链接无效');
   }
 
-  // 【核心改动】缓存目录改为统一存储路径
   if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
   const urlHash = crypto.createHash('md5').update(bgUrl).digest('hex');
   let ext = '.jpg';
-  try {
-    const extname = path.extname(new URL(bgUrl).pathname);
-    if (extname) ext = extname;
-  } catch (e) {}
-  
+  try { const e = path.extname(new URL(bgUrl).pathname); if (e) ext = e; } catch (e) {}
+
   const fileName = `bg_${urlHash}${ext}`;
   const cachePath = path.join(UPLOAD_DIR, fileName);
 
@@ -98,6 +122,9 @@ app.get('/api/background', (req, res) => {
       response.pipe(file);
       file.on('finish', () => {
         file.close();
+        // R2 双写: 下载完成后同步到 R2
+        r2.uploadToR2(cachePath, `uploads/${fileName}`, response.headers['content-type'] || 'image/jpeg')
+          .catch(() => {});
         res.redirect(`/uploads/${fileName}`);
       });
     } else {
@@ -109,9 +136,9 @@ app.get('/api/background', (req, res) => {
 });
 
 // =================================================================
-// 【新增】图标代理与缓存 - 网络图标首次使用时自动下载缓存
+// 图标代理与缓存 + R2 双写
 // =================================================================
-app.get('/api/icon-proxy', (req, res) => {
+app.get('/api/icon-proxy', async (req, res) => {
   const iconUrl = req.query.url;
   if (!iconUrl || !iconUrl.startsWith('http')) {
     return res.status(400).send('无效的图标链接');
@@ -121,20 +148,24 @@ app.get('/api/icon-proxy', (req, res) => {
 
   const urlHash = crypto.createHash('md5').update(iconUrl).digest('hex');
   let ext = '.png';
-  try {
-    const extname = path.extname(new URL(iconUrl).pathname);
-    if (extname && extname.length <= 5) ext = extname;
-  } catch (e) {}
+  try { const e = path.extname(new URL(iconUrl).pathname); if (e && e.length <= 5) ext = e; } catch (e) {}
 
   const fileName = `icon_${urlHash}${ext}`;
   const cachePath = path.join(UPLOAD_DIR, fileName);
+  const r2Key = `uploads/${fileName}`;
 
-  // 已缓存则直接返回
+  // 1. 本地已缓存
   if (fs.existsSync(cachePath)) {
     return res.redirect(`/uploads/${fileName}`);
   }
 
-  // 首次使用，下载并缓存
+  // 2. 本地无，尝试从 R2 拉取
+  if (r2.isR2Enabled()) {
+    const ok = await r2.downloadFromR2(r2Key, cachePath);
+    if (ok) return res.redirect(`/uploads/${fileName}`);
+  }
+
+  // 3. 都没有，从网络下载
   const client = iconUrl.startsWith('https') ? https : http;
   client.get(iconUrl, { timeout: 5000 }, (response) => {
     if (response.statusCode === 200) {
@@ -142,6 +173,9 @@ app.get('/api/icon-proxy', (req, res) => {
       response.pipe(file);
       file.on('finish', () => {
         file.close();
+        // R2 双写
+        r2.uploadToR2(cachePath, r2Key, response.headers['content-type'] || 'image/png')
+          .catch(() => {});
         res.redirect(`/uploads/${fileName}`);
       });
     } else {
@@ -153,14 +187,14 @@ app.get('/api/icon-proxy', (req, res) => {
 });
 
 // =================================================================
-// 【改动】配置接口 - 新增 bg_type 字段支持
+// 配置接口 - 返回 bg_type + r2_enabled
 // =================================================================
 app.get('/api/config', (req, res) => {
   db.all("SELECT key, value FROM settings WHERE key IN ('background', 'title', 'bg_type')", (err, rows) => {
     let bgUrl = '';
     let titleStr = '';
     let bgType = 'auto';
-    
+
     if (rows) {
       rows.forEach(r => {
         if (r.key === 'background') bgUrl = r.value;
@@ -172,7 +206,6 @@ app.get('/api/config', (req, res) => {
     if (!bgUrl) bgUrl = (config.app && config.app.background) || process.env.BACKGROUND || '';
     if (!titleStr) titleStr = (config.app && config.app.title) || process.env.SITE_TITLE || '我的导航';
 
-    // 【改动】智能判断：如果是本地上传的文件（/uploads/ 开头）则不走代理
     const isLocalFile = bgUrl.startsWith('/uploads/');
     const isVideo = bgUrl.toLowerCase().match(/\.(mp4|webm|ogg)$/);
 
@@ -183,18 +216,19 @@ app.get('/api/config', (req, res) => {
     res.json({
       title: titleStr,
       background: bgUrl,
-      bg_type: bgType
+      bg_type: bgType,
+      r2_enabled: r2.isR2Enabled()
     });
   });
 });
 
 // =================================================================
-// 【改动】配置保存接口 - 支持 bg_type
+// 配置保存接口 - 支持 bg_type
 // =================================================================
 app.post('/api/config/settings', authMiddleware, (req, res) => {
   const { title, background, bg_type } = req.body;
   const updates = [];
-  
+
   if (title !== undefined) updates.push({ key: 'title', value: title });
   if (background !== undefined) updates.push({ key: 'background', value: background });
   if (bg_type !== undefined) updates.push({ key: 'bg_type', value: bg_type });
@@ -226,4 +260,5 @@ app.post('/api/config/settings', authMiddleware, (req, res) => {
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is running at http://0.0.0.0:${PORT}`);
+  console.log(`R2 同步: ${r2.isR2Enabled() ? '已启用' : '未启用 (配置 R2 环境变量即可开启)'}`); 
 });
