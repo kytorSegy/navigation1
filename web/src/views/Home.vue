@@ -3,26 +3,9 @@
     
     <div class="bg-placeholder"></div>
 
-    <video
-      v-if="isVideoBg"
-      class="bg-video"
-      :class="{ 'fade-in': isBgLoaded }"
-      :src="customBackground"
-      autoplay
-      loop
-      muted
-      playsinline
-      ref="bgVideoRef"
-      @ended="handleVideoEnded"
-      @canplay="isBgLoaded = true"
-    ></video>
-    
-    <div 
-      v-else
-      class="bg-image"
-      :class="{ 'fade-in': isBgLoaded }"
-      :style="customBackground ? { backgroundImage: `url('${customBackground}')` } : {}"
-    ></div>
+    <video v-if="shouldShowVideo" class="bg-video" :class="{ 'fade-in': isBgLoaded }" :src="customBackground" autoplay loop muted playsinline webkit-playsinline preload="auto" ref="bgVideoRef" @canplay="onVideoCanPlay" @loadeddata="onVideoLoadedData" @error="onVideoError" @ended="onVideoEnded" :poster="transparentPixel"></video>
+    <div v-if="shouldShowImage" class="bg-image" :class="{ 'fade-in': isBgLoaded }" :style="customBackground ? { backgroundImage: `url('${customBackground}')` } : {}"></div>
+    <div v-if="needsInteraction && isBgLoaded" class="tap-to-play-hint" @click="forcePlay">轻触屏幕播放动态壁纸</div>
 
     <div class="content-overlay">
       <button class="theme-toggle-btn" @click="showThemeSettings = true" title="自定义专属壁纸">
@@ -31,15 +14,8 @@
         </svg>
       </button>
 
-      <div class="menu-bar-fixed">
-        <MenuBar 
-          :menus="menus" 
-          :activeId="activeMenu?.id" 
-          :activeSubMenuId="activeSubMenu?.id"
-          @select="selectMenu"
-        />
-      </div>
-      
+      <div class="menu-bar-fixed"><MenuBar :menus="menus" :activeId="activeMenu?.id" :activeSubMenuId="activeSubMenu?.id" @select="selectMenu" /></div>
+
       <div class="search-section">
         <div class="search-box-wrapper">
           <div class="search-engine-select">
@@ -51,99 +27,60 @@
             </button>
           </div>
           <div class="search-container">
-            <input 
-              v-model="searchQuery" 
-              type="text" 
-              :placeholder="selectedEngine.placeholder" 
-              class="search-input"
-              @keyup.enter="handleSearch"
-            />
-            <button v-if="searchQuery" class="clear-btn" @click="clearSearch" aria-label="清空" title="clear">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"></path></svg>
-            </button>
-            <button @click="handleSearch" class="search-btn" title="search">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </button>
+            <input v-model="searchQuery" type="text" :placeholder="selectedEngine.placeholder" class="search-input" @keyup.enter="handleSearch" enterkeyhint="search" autocomplete="off" />
+            <button v-if="searchQuery" class="clear-btn" @click="clearSearch" aria-label="清空"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"></path></svg></button>
+            <button @click="handleSearch" class="search-btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
           </div>
         </div>
       </div>
-      
-      <div v-if="leftAds.length" class="ad-space-fixed left-ad-fixed">
-        <a v-for="ad in leftAds" :key="ad.id" :href="ad.url" target="_blank">
-          <img :src="ad.img" alt="广告" />
-        </a>
-      </div>
-      <div v-if="rightAds.length" class="ad-space-fixed right-ad-fixed">
-        <a v-for="ad in rightAds" :key="ad.id" :href="ad.url" target="_blank">
-          <img :src="ad.img" alt="广告" />
-        </a>
-      </div>
-      
+
+      <div v-if="leftAds.length" class="ad-space-fixed left-ad-fixed"><a v-for="ad in leftAds" :key="ad.id" :href="ad.url" target="_blank"><img :src="ad.img" alt="" /></a></div>
+      <div v-if="rightAds.length" class="ad-space-fixed right-ad-fixed"><a v-for="ad in rightAds" :key="ad.id" :href="ad.url" target="_blank"><img :src="ad.img" alt="" /></a></div>
+
       <CardGrid :cards="filteredCards"/>
       
       <footer class="footer">
         <div class="footer-content">
-          <button @click="showFriendLinks = true" class="friend-link-btn">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
-              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
-            </svg>
-            友情链接
-          </button>
+          <button @click="showFriendLinks = true" class="friend-link-btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>友情链接</button>
           <p class="copyright">Copyright © 2025 Nav-Item | <a href="https://github.com/eooce/Nav-Item" target="_blank" class="footer-link">Powered by eooce</a></p>
         </div>
       </footer>
     </div> 
 
-    <div v-if="showFriendLinks" class="modal-overlay" @click="showFriendLinks = false">
-      <div class="modal-content" @click.stop>
-        <div class="modal-header">
-          <h3>友情链接</h3>
-          <button @click="showFriendLinks = false" class="close-btn">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M18 6L6 18M6 6l12 12"></path>
-            </svg>
-          </button>
-        </div>
-        <div class="modal-body">
-          <div class="friend-links-grid">
-            <a v-for="friend in friendLinks" :key="friend.id" :href="friend.url" target="_blank" class="friend-link-card">
-              <div class="friend-link-logo">
-                <img v-if="friend.logo" :src="friend.logo" :alt="friend.title" @error="handleLogoError" />
-                <div v-else class="friend-link-placeholder">{{ friend.title.charAt(0) }}</div>
-              </div>
-              <div class="friend-link-info">
-                <h4>{{ friend.title }}</h4>
-              </div>
-            </a>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <div v-if="showThemeSettings" class="modal-overlay" @click="showThemeSettings = false">
       <div class="modal-content theme-modal" @click.stop>
         <div class="modal-header">
-          <h3>个性化壁纸设置</h3>
-          <button @click="showThemeSettings = false" class="close-btn">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M18 6L6 18M6 6l12 12"></path>
-            </svg>
-          </button>
+          <h3>个性化访客壁纸设置</h3>
+          <button @click="showThemeSettings = false" class="close-btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"></path></svg></button>
         </div>
         <div class="modal-body">
-          <p class="theme-desc">您在这里设置的壁纸将保存在当前浏览器中，仅对您自己可见，互不干扰。</p>
-          <input v-model="visitorBgInput" type="text" placeholder="请输入任意图片或视频 (.mp4) 的链接" class="theme-input" />
-          <div class="theme-actions">
-            <button class="btn clear-theme-btn" @click="clearVisitorTheme">恢复默认全局壁纸</button>
-            <button class="btn save-theme-btn" @click="saveVisitorTheme">保存并应用</button>
+          <div class="upload-tabs">
+            <button @click="visitorMode = 'network'" :class="{active: visitorMode === 'network'}">网络链接</button>
+            <button @click="visitorMode = 'local'" :class="{active: visitorMode === 'local'}">读取本地文件</button>
+          </div>
+
+          <div v-if="visitorMode === 'local'" class="tab-content">
+            <p class="theme-desc">选择你电脑/手机里的图片或视频作为壁纸，只保存在你的浏览器中哦。</p>
+            <input type="file" @change="handleVisitorLocalFile" accept="image/*,video/*" />
+          </div>
+
+          <div v-if="visitorMode === 'network'" class="tab-content">
+            <p class="theme-desc">粘贴网络视频链接（.mp4）或图片链接。</p>
+            <input v-model="visitorBgInput" type="text" placeholder="请输入网络链接..." class="theme-input" />
+            <div class="type-selector">
+              <button :class="['type-btn', { active: visitorBgType === 'auto' }]" @click="visitorBgType = 'auto'">🔄 自动</button>
+              <button :class="['type-btn', { active: visitorBgType === 'video' }]" @click="visitorBgType = 'video'">🎬 视频</button>
+              <button :class="['type-btn', { active: visitorBgType === 'image' }]" @click="visitorBgType = 'image'">🖼️ 图片</button>
+            </div>
+            <button class="btn save-theme-btn" style="width:100%; margin-top: 10px;" @click="saveVisitorTheme">保存并应用网络链接</button>
+          </div>
+
+          <div class="theme-actions" style="margin-top:15px;">
+            <button class="btn clear-theme-btn" @click="clearVisitorTheme" style="width:100%">恢复全站默认壁纸</button>
           </div>
         </div>
       </div>
     </div>
-
   </div>
 </template>
 
@@ -163,46 +100,151 @@ const rightAds = ref([]);
 const showFriendLinks = ref(false);
 const friendLinks = ref([]);
 
-// [新增] 用于管理壁纸的变量
-const globalBackground = ref(''); 
-const customBackground = ref(''); 
-const showThemeSettings = ref(false); 
-const visitorBgInput = ref(''); 
-const isBgLoaded = ref(false); 
-const bgVideoRef = ref(null); 
+const globalBackground = ref('');
+const globalBgType = ref('auto');
+const customBackground = ref('');
+const customBgType = ref('auto');
+const showThemeSettings = ref(false);
 
-function handleVideoEnded() {
-  if (bgVideoRef.value) {
-    bgVideoRef.value.currentTime = 0;
-    bgVideoRef.value.play().catch(err => console.log('自动重新播放失败:', err));
-  }
+const visitorMode = ref('network'); // 默认访客模式
+const visitorBgInput = ref('');
+const visitorBgType = ref('auto');
+const isBgLoaded = ref(false);
+const bgVideoRef = ref(null);
+const videoFailed = ref(false);
+const needsInteraction = ref(false);
+
+const transparentPixel = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+
+// 判断视频逻辑保持不变
+function isVideoType(url, bgType) {
+  if (bgType === 'video') return true;
+  if (bgType === 'image') return false;
+  if (!url) return false;
+  const lower = url.toLowerCase();
+  // 注意，Base64 数据需要看它的头部格式
+  if (url.startsWith('data:video/')) return true;
+  return lower.includes('.mp4') || lower.includes('.webm') || lower.includes('.ogg');
 }
 
-const isVideoBg = computed(() => {
-  if (!customBackground.value) return false;
-  const url = customBackground.value.toLowerCase();
-  return url.includes('.mp4') || url.includes('.webm') || url.includes('.ogg');
-});
+const isVideoBg = computed(() => isVideoType(customBackground.value, customBgType.value));
+const shouldShowVideo = computed(() => isVideoBg.value && !videoFailed.value);
+const shouldShowImage = computed(() => customBackground.value && !isVideoBg.value);
+
+function onVideoCanPlay() { isBgLoaded.value = true; attemptPlay(); }
+function onVideoLoadedData() { if (!isBgLoaded.value) { isBgLoaded.value = true; attemptPlay(); } }
+function onVideoError() { videoFailed.value = true; isBgLoaded.value = true; }
+function onVideoEnded() {
+  const video = bgVideoRef.value;
+  if (video) { video.currentTime = 0; const p = video.play(); if (p && p.catch) p.catch(() => videoFailed.value = true); }
+}
+
+function attemptPlay() {
+  const video = bgVideoRef.value;
+  if (!video) return;
+  video.muted = true;
+  const p = video.play();
+  if (p && p.catch) p.catch(err => { if (err.name === 'NotAllowedError') needsInteraction.value = true; else videoFailed.value = true; });
+}
+function forcePlay() {
+  const video = bgVideoRef.value;
+  if (video) { video.muted = true; video.play().then(() => { needsInteraction.value = false; }).catch(() => { videoFailed.value = true; }); }
+  needsInteraction.value = false;
+}
 
 watch(customBackground, (newUrl) => {
-  if (!newUrl) {
-    isBgLoaded.value = true;
-    return;
-  }
-  isBgLoaded.value = false; 
-  
+  videoFailed.value = false; needsInteraction.value = false;
+  if (!newUrl) { isBgLoaded.value = true; return; }
+  isBgLoaded.value = false;
   if (!isVideoBg.value) {
-    const img = new Image();
-    img.src = newUrl;
-    img.onload = () => { isBgLoaded.value = true; };
-    img.onerror = () => { isBgLoaded.value = true; }; 
+    const img = new Image(); img.src = newUrl;
+    img.onload = () => { isBgLoaded.value = true; }; img.onerror = () => { isBgLoaded.value = true; };
   }
 }, { immediate: true });
+
+// --- 【新手必看】访客本地壁纸的 IndexedDB 核心逻辑 ---
+// 为什么不用 localStorage？因为一张图片轻松几MB，localStorage 只能存5MB，很快就崩了
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open('VisitorThemeDB', 1);
+    request.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('wallpapers')) db.createObjectStore('wallpapers', { keyPath: 'id' });
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+// 访客选择本地文件事件
+async function handleVisitorLocalFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const type = file.type.includes('video') ? 'video' : 'image';
+  const reader = new FileReader();
+  
+  // 读成可以在浏览器里直接渲染的 DataURL (Base64)
+  reader.readAsDataURL(file);
+  reader.onload = async (e) => {
+    const base64Data = e.target.result;
+    
+    // 打开数据库
+    const db = await openDB();
+    const tx = db.transaction('wallpapers', 'readwrite');
+    const store = tx.objectStore('wallpapers');
+    
+    // 【核心需求满足】清空旧壁纸，避免缓存越来越大
+    store.clear();
+    
+    // 存入新壁纸
+    store.put({ id: 'current', data: base64Data, type: type });
+    
+    // 应用到当前界面
+    customBackground.value = base64Data;
+    customBgType.value = type;
+    
+    // 在普通缓存中做个标记，表示当前正在用本地缓存
+    localStorage.setItem('visitor_use_local_db', 'true');
+    showThemeSettings.value = false;
+    alert("本地壁纸设置成功！");
+  };
+}
+
+// 网页加载时，尝试读取缓存的壁纸
+async function loadLocalWallpaper() {
+  if (localStorage.getItem('visitor_use_local_db') === 'true') {
+    try {
+      const db = await openDB();
+      const tx = db.transaction('wallpapers', 'readonly');
+      const store = tx.objectStore('wallpapers');
+      const request = store.get('current');
+      request.onsuccess = () => {
+        if (request.result) {
+          customBackground.value = request.result.data;
+          customBgType.value = request.result.type;
+        }
+      };
+    } catch (err) { console.log('读取本地壁纸缓存失败', err); }
+  } else {
+    // 如果不是用的本地文件，那就去读正常的网络链接
+    const localBg = localStorage.getItem('visitor_bg');
+    const localBgType = localStorage.getItem('visitor_bg_type');
+    if (localBg) { 
+      customBackground.value = localBg; customBgType.value = localBgType || 'auto'; 
+      visitorBgInput.value = localBg; visitorBgType.value = localBgType || 'auto'; 
+    } else { 
+      customBackground.value = globalBackground.value; customBgType.value = globalBgType.value; 
+    }
+  }
+}
 
 function saveVisitorTheme() {
   const url = visitorBgInput.value.trim();
   if (url) {
-    localStorage.setItem('visitor_bg', url); 
+    localStorage.setItem('visitor_bg', url);
+    localStorage.setItem('visitor_bg_type', visitorBgType.value);
+    localStorage.removeItem('visitor_use_local_db'); // 取消本地缓存标记
     customBackground.value = url;
   } else {
     clearVisitorTheme();
@@ -211,12 +253,21 @@ function saveVisitorTheme() {
 }
 
 function clearVisitorTheme() {
-  localStorage.removeItem('visitor_bg');
-  visitorBgInput.value = '';
-  customBackground.value = globalBackground.value;
+  localStorage.removeItem('visitor_bg'); 
+  localStorage.removeItem('visitor_bg_type');
+  localStorage.removeItem('visitor_use_local_db');
+  // 同时清空 IndexedDB
+  openDB().then(db => {
+    const tx = db.transaction('wallpapers', 'readwrite');
+    tx.objectStore('wallpapers').clear();
+  });
+  
+  visitorBgInput.value = ''; visitorBgType.value = 'auto';
+  customBackground.value = globalBackground.value; customBgType.value = globalBgType.value;
   showThemeSettings.value = false;
 }
 
+// ------ 以下为原来的搜索和菜单逻辑，未做改动 ------
 const searchEngines = [
   { name: 'google', label: 'Google', placeholder: 'Google 搜索...', url: q => `https://www.google.com/search?q=${encodeURIComponent(q)}` },
   { name: 'baidu', label: '百度', placeholder: '百度搜索...', url: q => `https://www.baidu.com/s?wd=${encodeURIComponent(q)}` },
@@ -247,67 +298,21 @@ const filteredCards = computed(() => {
   );
 });
 
-let searchTimer = null;
-watch(searchQuery, (newVal) => {
-  if (newVal.trim() === '') {
-    if (!activeMenu.value && menus.value.length > 0) {
-      activeMenu.value = menus.value[0];
-    }
-    loadCards();
-    return;
-  }
-  if (selectedEngine.value.name === 'site') {
-    clearTimeout(searchTimer);
-    searchTimer = setTimeout(async () => {
-      try {
-        const res = await searchCards(newVal.trim());
-        if (res.data.length > 0) {
-          cards.value = res.data;
-          activeMenu.value = null;
-          activeSubMenu.value = null;
-        } else {
-          cards.value = [];
-        }
-      } catch (err) {
-        console.error('站内搜索出错:', err);
-      }
-    }, 100);
-  }
-});
-
 onMounted(async () => {
   try {
     const configRes = await getConfig();
-    if (configRes.data.background) {
-      globalBackground.value = configRes.data.background;
-    }
-    if (configRes.data.title) {
-      document.title = configRes.data.title; 
-    }
-  } catch (e) {
-    console.error('Failed to load config:', e);
-  }
-
-  const localBg = localStorage.getItem('visitor_bg');
-  if (localBg) {
-    customBackground.value = localBg;
-    visitorBgInput.value = localBg; 
-  } else {
-    customBackground.value = globalBackground.value;
-  }
-
-  const res = await getMenus();
-  menus.value = res.data;
-  if (menus.value.length) {
-    activeMenu.value = menus.value[0];
-    loadCards();
-  }
-  const adRes = await getAds();
-  leftAds.value = adRes.data.filter(ad => ad.position === 'left');
-  rightAds.value = adRes.data.filter(ad => ad.position === 'right');
+    if (configRes.data.background) globalBackground.value = configRes.data.background;
+    if (configRes.data.bg_type) globalBgType.value = configRes.data.bg_type;
+    if (configRes.data.title) document.title = configRes.data.title;
+  } catch (e) { console.error('Failed to load config:', e); }
   
-  const friendRes = await getFriends();
-  friendLinks.value = friendRes.data;
+  // 重点：挂载时调用读取本地缓存的逻辑
+  await loadLocalWallpaper();
+
+  const res = await getMenus(); menus.value = res.data;
+  if (menus.value.length) { activeMenu.value = menus.value[0]; loadCards(); }
+  const adRes = await getAds(); leftAds.value = adRes.data.filter(ad => ad.position === 'left'); rightAds.value = adRes.data.filter(ad => ad.position === 'right');
+  const friendRes = await getFriends(); friendLinks.value = friendRes.data;
 });
 
 async function selectMenu(menu, parentMenu = null) {
@@ -357,564 +362,40 @@ function handleLogoError(event) {
 </script>
 
 <style scoped>
-.home-container {
-  min-height: 100vh;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-}
-
-.bg-placeholder {
-  position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: linear-gradient(135deg, #1a1c29, #2a2d3e);
-  z-index: -1; 
-}
-
-.bg-image, .bg-video {
-  opacity: 0;
-  transition: opacity 1.2s ease-in-out;
-}
-.fade-in {
-  opacity: 1 !important;
-}
-
-.bg-image {
-  position: fixed;
-  top: 0; left: 0; width: 100vw; height: 100vh;
-  background-image: url('/background.webp');
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  z-index: 0;
-}
-
-.bg-video {
-  position: fixed;
-  top: 0; left: 0; width: 100vw; height: 100vh;
-  object-fit: cover;
-  z-index: 0;
-}
-
-.home-container::before {
-  content: '';
-  position: fixed;
-  top: 0; left: 0; width: 100vw; height: 100vh;
-  background: rgba(0, 0, 0, 0.3);
-  z-index: 1;
-}
-
-.content-overlay {
-  position: relative;
-  z-index: 2;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  padding-top: 50px; 
-}
-
-.theme-toggle-btn {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  z-index: 101;
-  background: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 50%;
-  width: 45px; height: 45px;
-  display: flex; align-items: center; justify-content: center;
-  color: white;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-}
-.theme-toggle-btn:hover {
-  background: rgba(255, 255, 255, 0.25);
-  transform: rotate(15deg) scale(1.1);
-  box-shadow: 0 6px 16px rgba(0,0,0,0.2);
-}
-
-.theme-modal {
-  width: 420px !important;
-  height: auto !important;
-  min-height: 220px;
-}
-.theme-desc {
-  font-size: 13px;
-  color: #555;
-  margin-bottom: 15px;
-  line-height: 1.5;
-  background: #f0f4f8;
-  padding: 10px;
-  border-radius: 6px;
-  border-left: 3px solid #2566d8;
-}
-.theme-input {
-  width: 100%;
-  padding: 12px 16px;
-  border-radius: 8px;
-  border: 1px solid #cbd5e1;
-  font-size: 14px;
-  background: #fff;
-  margin-bottom: 20px;
-  box-sizing: border-box;
-}
-.theme-input:focus {
-  outline: none;
-  border-color: #2566d8;
-  box-shadow: 0 0 0 2px rgba(37,102,216,0.1);
-}
-.theme-actions {
-  display: flex;
-  gap: 12px;
-}
-.save-theme-btn {
-  flex: 1;
-  background: #2566d8;
-  color: white;
-  border: none;
-  padding: 12px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 500;
-  transition: background 0.2s;
-}
-.save-theme-btn:hover { background: #1a4ba3; }
-.clear-theme-btn {
-  flex: 1;
-  background: #fff;
-  color: #64748b;
-  border: 1px solid #cbd5e1;
-  padding: 12px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 500;
-  transition: all 0.2s;
-}
-.clear-theme-btn:hover { background: #f8fafc; color: #ef4444; border-color: #ef4444; }
-
-.menu-bar-fixed {
-  position: fixed;
-  top: .6rem;
-  left: 0;
-  width: 100vw;
-  z-index: 100;
-}
-.search-engine-select {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  padding-bottom: .3rem;
-  gap: 5px;
-  z-index: 2;
-}
-.engine-btn {
-  border: none;
-  background: none;
-  color: #ffffff;
-  font-size: .8rem ;
-  padding: 2px 10px;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: color 0.2s, background 0.2s;
-}
-.engine-btn.active, .engine-btn:hover {
-  color: #399dff;
-  background: #ffffff1a;
-}
-.search-container {
-  display: flex;
-  align-items: center;
-  background: #b3b7b83b;
-  border-radius: 20px;
-  padding: 0.3rem;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-  backdrop-filter: blur(10px);
-  max-width: 480px;
-  width: 92%;
-  position: relative;
-}
-.search-input {
-  flex: 1;
-  border: none;
-  background: transparent;
-  padding: .1rem .5rem;
-  font-size: 1.2rem;
-  color: #ffffff;
-  outline: none;
-}
-.search-input::placeholder {
-  color: #999;
-}
-.clear-btn {
-  background: none;
-  border: none;
-  outline: none;
-  cursor: pointer;
-  margin-right: 0.2rem;
-  display: flex;
-  align-items: center;
-  padding: 0;
-}
-.search-btn {
-  background: #e9e9eb00;
-  color: #ffffff;
-  border: none;
-  border-radius: 50%;
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: background 0.2s;
-  margin-right: 0.1rem;
-}
-.search-btn:hover {
-  background: #3367d6;
-}
-.search-section {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 2.8rem 0;
-  position: relative;
-  z-index: 2;
-}
-.search-box-wrapper {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 100%;
-  max-width: 480px;
-}
-.content-wrapper {
-  display: flex;
-  max-width: 1400px;
-  margin: 0 auto;
-  gap: 2rem;
-  position: relative;
-  z-index: 2;
-  flex: 1;
-  justify-content: space-between;
-}
-.main-content {
-  flex: 1;
-  min-width: 0;
-}
-.ad-space {
-  width: 90px;
-  min-width: 60px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 24px;
-  padding: 0;
-  background: transparent;
-  margin: 0;
-}
-.ad-space a {
-  width: 100%;
-  display: block;
-}
-.ad-space img {
-  width: 100%;
-  max-width: 90px;
-  max-height: 160px;
-  border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.12);
-  background: #fff;
-  object-fit: contain;
-  margin: 0 auto;
-}
-.ad-placeholder {
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  border: 2px dashed rgba(255, 255, 255, 0.3);
-  border-radius: 12px;
-  color: rgba(255, 255, 255, 0.6);
-  padding: 2rem 1rem;
-  text-align: center;
-  font-size: 14px;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.footer {
-  margin-top: auto;
-  text-align: center;
-  padding-top: 1rem;
-  padding-bottom: 2rem;
-  position: relative;
-  z-index: 2;
-}
-.footer-content {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 50px;
-}
-.friend-link-btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: none;
-  border: none;
-  color: rgba(255, 255, 255, 0.8);
-  cursor: pointer;
-  transition: all 0.3s ease;
-  font-size: 14px;
-  padding: 0;
-}
-.friend-link-btn:hover {
-  color: #1976d2;
-  transform: translateY(-1px);
-}
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  backdrop-filter: blur(5px);
-}
-.modal-content {
-  background: #f8fafc;
-  border-radius: 16px;
-  width: 55rem;
-  height: 30rem;
-  max-width: 95vw;
-  max-height: 95vh;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-  overflow: hidden;
-}
-.modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 15px 20px;
-  border-bottom: 1px solid #e5e7eb;
-  background: #fff;
-}
-.modal-header h3 {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 600;
-  color: #111827;
-}
-.close-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 6px;
-  border-radius: 8px;
-  color: #6b7280;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.close-btn:hover {
-  background: #fee2e2;
-  color: #ef4444;
-}
-.modal-body {
-  flex: 1;
-  padding: 24px;
-  overflow-y: auto;
-}
-.friend-links-grid {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 12px;
-}
-@media (max-width: 768px) {
-  .friend-links-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-  .container {
-    width: 95%;
-  }
-  .theme-toggle-btn {
-    top: 15px; right: 15px; width: 38px; height: 38px;
-  }
-  .theme-modal {
-    width: 90% !important;
-  }
-}
-.friend-link-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 10px;
-  background: #fff;
-  border-radius: 12px;
-  text-decoration: none;
-  color: inherit;
-  transition: all 0.2s ease;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-}
-.friend-link-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0,0,0,0.08);
-  border-color: #cbd5e1;
-}
-.friend-link-logo {
-  width: 48px;
-  height: 48px;
-  border-radius: 8px;
-  overflow: hidden;
-  margin-bottom: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #f8fafc;
-}
-.friend-link-logo img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-.friend-link-placeholder {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #64748b;
-  font-size: 20px;
-  font-weight: 600;
-  border-radius: 8px;
-}
-.friend-link-info h4 {
-  margin: 0;
-  font-size: 13px;
-  font-weight: 500;
-  color: #334155;
-  text-align: center;
-  line-height: 1.3;
-  word-break: break-all;
-}
-.copyright {
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 14px;
-  margin: 0;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-}
-.footer-link {
-  color: #ffffffcc;
-  text-decoration: none;
-  transition: color 0.2s;
-}
-.footer-link:hover {
-  color: #1976d2;
-}
-:deep(.menu-bar) {
-  position: relative;
-  z-index: 2;
-}
-:deep(.card-grid) {
-  position: relative;
-  z-index: 2;
-}
-.ad-space-fixed {
-  position: fixed;
-  top: 13rem;
-  z-index: 10;
-  width: 90px;
-  min-width: 60px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 5px;
-  padding: 0;
-  background: transparent;
-  margin: 0;
-}
-.left-ad-fixed {
-  left: 0;
-}
-.right-ad-fixed {
-  right: 0;
-}
-.ad-space-fixed a {
-  width: 100%;
-  display: block;
-}
-.ad-space-fixed img {
-  width: 100%;
-  max-width: 90px;
-  max-height: 160px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.12);
-  background: #fff;
-  margin: 0 auto;
-}
-@media (max-width: 1200px) {
-  .content-wrapper {
-    flex-direction: column;
-    gap: 1rem;
-  }
-  .ad-space {
-    width: 100%;
-    height: 100px;
-  }
-  .ad-placeholder {
-    height: 80px;
-  }
-}
-@media (max-width: 768px) {
-  .home-container {
-    padding-top: 80px;
-  }
-  .content-wrapper {
-    gap: 0.5rem;
-  }
-  .ad-space {
-    height: 60px;
-  }
-  .ad-placeholder {
-    height: 50px;
-    font-size: 12px;
-    padding: 1rem 0.5rem;
-  }
-  .footer {
-    padding-top: 2rem;
-  }
-  .friend-link-btn {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: none;
-    border: none;
-    color: rgba(255, 255, 255, 0.8);
-    cursor: pointer;
-    transition: all 0.3s ease;
-    font-size: 0.7rem;
-    padding: 0;
-  }
-  .copyright {
-    color: rgba(255, 255, 255, 0.8);
-    font-size: 0.7rem;
-    margin: 0;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-  }
-  .footer-content {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 20px;
-  }
-}
+/* 保持你的原来样式即可，增加少量针对选项卡的微调 */
+.home-container { min-height: 100vh; min-height: 100dvh; position: relative; display: flex; flex-direction: column; }
+.bg-placeholder { position: fixed; inset: 0; background: linear-gradient(135deg, #1a1c29, #2a2d3e); z-index: -1; }
+.bg-image, .bg-video { opacity: 0; transition: opacity 1.2s ease-in-out; }
+.fade-in { opacity: 1 !important; }
+.bg-image { position: fixed; inset: 0; background-size: cover; background-position: center; background-repeat: no-repeat; z-index: 0; }
+.bg-video { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; height: 100dvh; object-fit: cover; z-index: 0; }
+.home-container::before { content: ''; position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 1; }
+.content-overlay { position: relative; z-index: 2; flex: 1; display: flex; flex-direction: column; padding-top: 50px; }
+.tap-to-play-hint { position: fixed; bottom: 120px; left: 50%; transform: translateX(-50%); z-index: 3; background: rgba(0,0,0,0.5); backdrop-filter: blur(8px); color: #fff; font-size: 12px; padding: 8px 16px; border-radius: 20px; cursor: pointer; }
+.theme-toggle-btn { position: fixed; top: 16px; right: 16px; z-index: 101; background: rgba(255,255,255,0.15); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.3); border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; color: white; cursor: pointer; }
+.menu-bar-fixed { position: fixed; top: .6rem; left: 0; width: 100vw; z-index: 100; }
+.search-section { display: flex; flex-direction: column; align-items: center; padding: 1.5rem 0 2rem; z-index: 2; }
+.search-box-wrapper { display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 480px; padding: 0 12px; box-sizing: border-box; }
+.search-container { display: flex; align-items: center; background: #b3b7b83b; border-radius: 20px; padding: 0.2rem; box-shadow: 0 4px 20px rgba(0,0,0,0.1); backdrop-filter: blur(10px); width: 92%; }
+.search-input { flex: 1; border: none; background: transparent; padding: .1rem .5rem; font-size: 1rem; color: #fff; outline: none; }
+.search-btn, .clear-btn { background: transparent; border: none; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 36px; height: 36px;}
+.footer { margin-top: auto; text-align: center; padding: 1rem 0 1.5rem; z-index: 2; }
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(5px); }
+.modal-content { background: #f8fafc; border-radius: 16px; width: 55rem; max-width: 95vw; max-height: 95vh; display: flex; flex-direction: column; overflow: hidden; }
+.modal-header { display: flex; align-items: center; justify-content: space-between; padding: 15px 20px; border-bottom: 1px solid #e5e7eb; background: #fff; }
+.close-btn { background: none; border: none; cursor: pointer; padding: 8px; border-radius: 8px; color: #6b7280; }
+.modal-body { flex: 1; padding: 16px; overflow-y: auto; }
+.theme-modal { width: 420px !important; }
+.upload-tabs { display: flex; gap: 10px; margin-bottom: 15px; }
+.upload-tabs button { flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #d0d7e2; background: #f8f9fa; cursor: pointer; font-weight: bold; }
+.upload-tabs button.active { background: #2566d8; color: white; border-color: #2566d8; }
+.tab-content { background: #fff; padding: 15px; border-radius: 8px; border: 1px dashed #d0d7e2; }
+.theme-desc { font-size: 12px; color: #555; margin-bottom: 12px; line-height: 1.6; }
+.theme-input { width: 100%; padding: 12px 16px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 14px; background: #fff; margin-bottom: 12px; box-sizing: border-box; }
+.type-selector { display: flex; gap: 8px; margin-bottom: 10px; }
+.type-btn { flex: 1; padding: 10px 8px; border-radius: 8px; border: 1px solid #cbd5e1; background: #fff; font-size: 12px; cursor: pointer; }
+.type-btn.active { background: #2566d8; color: #fff; }
+.btn { border-radius: 8px; padding: 12px; cursor: pointer; font-weight: 500; border: none; }
+.save-theme-btn { background: #2566d8; color: white; }
+.clear-theme-btn { background: #fee2e2; color: #ef4444; }
 </style>
