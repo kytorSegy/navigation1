@@ -14,15 +14,10 @@ services:
       - DB_PATH=/app/database/nav.db
       - UPLOAD_DIR=/app/database/uploads
       # ===== Cloudflare R2 =====
-      # 不在此处填写 R2 密钥，避免泄露风险。
-      # 请在容器平台（如 Portainer / Railway / Fly.io / 1Panel 等）
-      # 部署镜像时，通过平台的「环境变量」功能注入以下 5 个变量：
-      #   R2_ACCOUNT_ID
-      #   R2_ACCESS_KEY_ID
-      #   R2_SECRET_ACCESS_KEY
-      #   R2_BUCKET_NAME
-      #   R2_PUBLIC_DOMAIN
-      # 全部留空或不填时，系统自动降级为仅本地存储，不会报错。
+      # 不在此处填写密钥，请在容器平台的「环境变量」中注入：
+      #   R2_ACCOUNT_ID / R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY
+      #   R2_BUCKET_NAME / R2_PUBLIC_DOMAIN
+      # 全部不填时系统自动降级为仅本地存储。
     volumes:
       - ./database:/app/database
     restart: unless-stopped
