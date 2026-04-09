@@ -2,9 +2,12 @@
   <div class="system-manage">
     <div class="system-header">
       <h2 class="section-title">系统全局设置</h2>
+      <div v-if="r2Status !== null" class="r2-badge" :class="r2Status ? 'r2-on' : 'r2-off'">
+        {{ r2Status ? 'R2 同步已启用' : 'R2 未配置 (仅本地存储)' }}
+      </div>
     </div>
     <div class="system-card">
-      
+
       <div class="form-group">
         <label>网站浏览器标题：</label>
         <input v-model="siteTitle" class="input" placeholder="请输入你的专属导航网站标题" />
@@ -13,33 +16,40 @@
       <div class="form-group">
         <label>壁纸设置方式：</label>
         <div class="upload-tabs">
-          <button @click="uploadMode = 'local'" :class="{active: uploadMode === 'local'}">📁 本地视频或图片</button>
-          <button @click="uploadMode = 'network'" :class="{active: uploadMode === 'network'}">🌐 网络壁纸</button>
+          <button @click="uploadMode = 'local'" :class="{active: uploadMode === 'local'}">本地视频或图片</button>
+          <button @click="uploadMode = 'network'" :class="{active: uploadMode === 'network'}">网络壁纸</button>
         </div>
       </div>
 
-      <!-- 本地上传模式 -->
       <div v-if="uploadMode === 'local'" class="tab-content local-upload-box">
-        <p class="hint">选择本地图片或视频文件，上传并保存到服务器本地存储 (/app/database/uploads/)。</p>
+        <p class="hint">选择本地图片或视频文件，上传并保存到服务器。{{ r2Status ? '文件会自动同步到 Cloudflare R2。' : '' }}</p>
         <input type="file" ref="fileInput" @change="handleFileUpload" accept="image/*,video/*" />
         <div v-if="uploading" class="loading-text">正在上传到服务器，请稍候...</div>
-        <div v-if="uploadSuccess" class="success-text">✅ 文件上传成功！已自动填充到下方。</div>
+        <div v-if="uploadResult" class="result-box">
+          <div class="result-success">文件上传成功！</div>
+          <div v-if="uploadResult.r2_synced" class="r2-sync-ok">R2 同步成功</div>
+          <div v-else-if="r2Status" class="r2-sync-fail">R2 同步失败 (本地已保存)</div>
+        </div>
       </div>
 
-      <!-- 网络链接模式 -->
       <div v-if="uploadMode === 'network'" class="tab-content network-upload-box">
-        <p class="hint">输入网络图片或视频链接。可直接保存链接，也可点击“下载并缓存”将资源存到服务器。</p>
+        <p class="hint">输入网络图片或视频链接。可直接保存链接，也可下载缓存到服务器{{ r2Status ? '+R2' : '' }}。</p>
         <input v-model="networkUrl" class="input" placeholder="请输入网络视频或图片链接" />
         <div class="network-actions">
           <button class="action-btn cache-btn" @click="handleCacheNetwork" :disabled="!networkUrl.trim() || caching">
-            {{ caching ? '正在下载并缓存...' : '⬇️ 下载并缓存到服务器' }}
+            {{ caching ? '正在下载并缓存...' : '下载并缓存到服务器' }}
           </button>
           <button class="action-btn direct-btn" @click="useNetworkDirect" :disabled="!networkUrl.trim()">
-            🔗 直接使用网络链接
+            直接使用网络链接
           </button>
         </div>
+        <div v-if="cacheResult" class="result-box">
+          <div class="result-success">网络资源缓存成功！</div>
+          <div v-if="cacheResult.r2_synced" class="r2-sync-ok">R2 同步成功</div>
+          <div v-else-if="r2Status" class="r2-sync-fail">R2 同步失败 (本地已保存)</div>
+        </div>
         <div v-if="recommendedType" class="recommend-tip">
-          💡 自动识别类型：<strong>{{ recommendedType === 'video' ? '视频' : '图片' }}</strong>（已自动选择，您可手动修改）
+          自动识别类型: <strong>{{ recommendedType === 'video' ? '视频' : '图片' }}</strong> (已自动选择，您可手动修改)
         </div>
       </div>
 
@@ -49,11 +59,11 @@
       </div>
 
       <div class="form-group">
-        <label>确认壁纸类型（管理员有最终决定权）：</label>
+        <label>确认壁纸类型 (管理员有最终决定权)：</label>
         <div class="type-selector">
-          <button :class="['type-btn', { active: bgType === 'auto' }]" @click="bgType = 'auto'">🔄 自动判断</button>
-          <button :class="['type-btn', { active: bgType === 'video' }]" @click="bgType = 'video'">🎬 视频</button>
-          <button :class="['type-btn', { active: bgType === 'image' }]" @click="bgType = 'image'">🖼️ 图片</button>
+          <button :class="['type-btn', { active: bgType === 'auto' }]" @click="bgType = 'auto'">自动判断</button>
+          <button :class="['type-btn', { active: bgType === 'video' }]" @click="bgType = 'video'">视频</button>
+          <button :class="['type-btn', { active: bgType === 'image' }]" @click="bgType = 'image'">图片</button>
         </div>
       </div>
 
@@ -77,16 +87,19 @@ const messageType = ref('success');
 const uploadMode = ref('local');
 const fileInput = ref(null);
 const uploading = ref(false);
-const uploadSuccess = ref(false);
+const uploadResult = ref(null);
 const networkUrl = ref('');
 const caching = ref(false);
+const cacheResult = ref(null);
 const recommendedType = ref('');
+const r2Status = ref(null);
 
 onMounted(async () => {
   try {
     const res = await getConfig();
     siteTitle.value = res.data.title || '';
     bgType.value = res.data.bg_type || 'auto';
+    r2Status.value = res.data.r2_enabled || false;
 
     let url = res.data.background || '';
     if (url.includes('/api/background?url=')) {
@@ -98,13 +111,12 @@ onMounted(async () => {
   }
 });
 
-// 【功能 1】本地文件上传到服务器
 async function handleFileUpload(event) {
   const file = event.target.files[0];
   if (!file) return;
   uploading.value = true;
-  uploadSuccess.value = false;
-  
+  uploadResult.value = null;
+
   const formData = new FormData();
   formData.append('file', file);
 
@@ -118,7 +130,7 @@ async function handleFileUpload(event) {
     if (result.url) {
       bgUrl.value = result.url;
       bgType.value = result.type || (file.type.includes('video') ? 'video' : 'image');
-      uploadSuccess.value = true;
+      uploadResult.value = result;
       message.value = '文件上传成功！请点击【保存全局设置】应用。';
       messageType.value = 'success';
     } else {
@@ -132,16 +144,16 @@ async function handleFileUpload(event) {
   }
 }
 
-// 【功能 2】网络资源下载并缓存到服务器
 async function handleCacheNetwork() {
   if (!networkUrl.value.trim()) return;
   caching.value = true;
   message.value = '';
+  cacheResult.value = null;
   recommendedType.value = '';
   try {
     const response = await fetch('/api/upload/fetch-and-cache', {
       method: 'POST',
-      headers: { 
+      headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer ' + localStorage.getItem('token')
       },
@@ -152,24 +164,24 @@ async function handleCacheNetwork() {
       bgUrl.value = result.url;
       recommendedType.value = result.recommended_type || result.type;
       bgType.value = result.recommended_type || result.type || 'auto';
-      message.value = '网络资源已缓存到服务器！请点击【保存全局设置】应用。';
+      cacheResult.value = result;
+      message.value = '网络资源已缓存！请点击【保存全局设置】应用。';
       messageType.value = 'success';
     } else {
       throw new Error(result.error);
     }
   } catch (error) {
-    message.value = '缓存失败：' + error.message;
+    message.value = '缓存失败: ' + error.message;
     messageType.value = 'error';
   } finally {
     caching.value = false;
   }
 }
 
-// 【功能 3】直接使用网络链接（不下载）
 function useNetworkDirect() {
   if (!networkUrl.value.trim()) return;
   bgUrl.value = networkUrl.value.trim();
-  // 自动判断类型并推荐
+  cacheResult.value = null;
   const lower = networkUrl.value.toLowerCase();
   if (lower.match(/\.(mp4|webm|ogg)(\?|$)/)) {
     bgType.value = 'video';
@@ -184,12 +196,11 @@ function useNetworkDirect() {
   messageType.value = 'success';
 }
 
-// 保存到数据库
 async function handleSave() {
   loading.value = true;
   message.value = '';
   try {
-    await updateConfig({ 
+    await updateConfig({
       title: siteTitle.value,
       background: bgUrl.value,
       bg_type: bgType.value
@@ -198,7 +209,7 @@ async function handleSave() {
     messageType.value = 'success';
     if (siteTitle.value) document.title = siteTitle.value;
   } catch (err) {
-    message.value = '保存失败：' + (err.response?.data?.error || err.message);
+    message.value = '保存失败: ' + (err.response?.data?.error || err.message);
     messageType.value = 'error';
   } finally {
     loading.value = false;
@@ -209,8 +220,11 @@ async function handleSave() {
 
 <style scoped>
 .system-manage { max-width: 1400px; width: 90%; margin: 0 auto; }
-.system-header { margin-bottom: 20px; }
+.system-header { margin-bottom: 20px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
 .section-title { font-size: 1.5rem; font-weight: bold; color: #2566d8; margin-top: 2rem; }
+.r2-badge { font-size: 12px; padding: 4px 12px; border-radius: 20px; font-weight: 600; margin-top: 2rem; }
+.r2-on { background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
+.r2-off { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
 .system-card { background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); padding: 30px; max-width: 800px; }
 .form-group { margin-bottom: 20px; }
 .form-group label { display: block; margin-bottom: 10px; font-weight: bold; color: #222; font-size: 1.1rem; }
@@ -222,7 +236,10 @@ async function handleSave() {
 .tab-content { background: #f8f9fa; padding: 20px; border-radius: 8px; border: 1px dashed #d0d7e2; margin-bottom: 20px; }
 .hint { font-size: 0.9rem; color: #666; margin-bottom: 12px; line-height: 1.6; }
 .loading-text { color: #e67e22; font-weight: bold; margin-top: 10px; }
-.success-text { color: #27ae60; font-weight: bold; margin-top: 10px; }
+.result-box { margin-top: 10px; padding: 10px; border-radius: 6px; background: #f0fdf4; border: 1px solid #bbf7d0; }
+.result-success { color: #166534; font-weight: bold; }
+.r2-sync-ok { color: #065f46; font-size: 0.85rem; margin-top: 4px; }
+.r2-sync-fail { color: #92400e; font-size: 0.85rem; margin-top: 4px; }
 .network-actions { display: flex; gap: 10px; margin-top: 10px; }
 .action-btn { flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #d0d7e2; font-weight: bold; font-size: 13px; cursor: pointer; transition: 0.2s; }
 .cache-btn { background: #e0f2fe; color: #0369a1; }
