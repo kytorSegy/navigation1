@@ -18,7 +18,7 @@
       @canplay="onVideoCanPlay"
       @loadeddata="onVideoLoadedData"
       @error="onVideoError"
-      @ended="onVideoEnded"
+      @ended="onVideoEnded" 
       :poster="transparentPixel"
     ></video>
 
@@ -81,7 +81,6 @@
       </footer>
     </div>
 
-    <!-- 友情链接弹窗 -->
     <div v-if="showFriendLinks" class="modal-overlay" @click="showFriendLinks = false">
       <div class="modal-content modal-bottom-sheet" @click.stop>
         <div class="modal-header">
@@ -102,7 +101,6 @@
       </div>
     </div>
 
-    <!-- 壁纸设置弹窗 (双模式: 本地文件 + 网络链接) -->
     <div v-if="showThemeSettings" class="modal-overlay" @click="showThemeSettings = false">
       <div class="modal-content theme-modal modal-bottom-sheet" @click.stop>
         <div class="modal-header">
@@ -110,32 +108,22 @@
           <button @click="showThemeSettings = false" class="close-btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"></path></svg></button>
         </div>
         <div class="modal-body">
-          <!-- 模式切换 -->
-          <div class="upload-tabs">
-            <button @click="visitorMode = 'local'" :class="{active: visitorMode === 'local'}">本地图片/视频</button>
-            <button @click="visitorMode = 'network'" :class="{active: visitorMode === 'network'}">网络链接</button>
+          <p class="theme-desc">💡 支持动态壁纸！粘贴视频链接（.mp4）或图片链接。<br/>对于无后缀名的链接，点击「检测类型」自动识别，或手动选择类型。</p>
+          <input v-model="visitorBgInput" type="text" placeholder="请输入视频或图片链接" class="theme-input" />
+          <div class="type-selector">
+            <button :class="['type-btn', { active: visitorBgType === 'auto' }]" @click="visitorBgType = 'auto'">🔄 自动</button>
+            <button :class="['type-btn', { active: visitorBgType === 'video' }]" @click="visitorBgType = 'video'">🎬 视频</button>
+            <button :class="['type-btn', { active: visitorBgType === 'image' }]" @click="visitorBgType = 'image'">🖼️ 图片</button>
           </div>
-
-          <!-- 本地文件模式 -->
-          <div v-if="visitorMode === 'local'" class="tab-content">
-            <p class="theme-desc">选择你电脑/手机里的图片或视频作为壁纸，只保存在你的浏览器中。</p>
-            <input type="file" @change="handleVisitorLocalFile" accept="image/*,video/*" class="file-input" />
-          </div>
-
-          <!-- 网络链接模式 -->
-          <div v-if="visitorMode === 'network'" class="tab-content">
-            <p class="theme-desc">粘贴网络视频链接（.mp4）或图片链接。</p>
-            <input v-model="visitorBgInput" type="text" placeholder="请输入视频或图片链接" class="theme-input" />
-            <div class="type-selector">
-              <button :class="['type-btn', { active: visitorBgType === 'auto' }]" @click="visitorBgType = 'auto'">自动</button>
-              <button :class="['type-btn', { active: visitorBgType === 'video' }]" @click="visitorBgType = 'video'">视频</button>
-              <button :class="['type-btn', { active: visitorBgType === 'image' }]" @click="visitorBgType = 'image'">图片</button>
-            </div>
-          </div>
-
+          <button class="detect-btn" @click="handleDetect" :disabled="!visitorBgInput.trim() || detecting">{{ detecting ? '正在检测...' : '🔍 检测链接类型' }}</button>
+          <p v-if="detectResult" :class="['detect-result', detectResult.type]">
+            <template v-if="detectResult.type === 'video'">✅ 视频文件 — 将作为动态壁纸播放</template>
+            <template v-else-if="detectResult.type === 'image'">✅ 图片文件</template>
+            <template v-else>⚠️ 无法识别，请手动选择类型</template>
+          </p>
           <div class="theme-actions">
             <button class="btn clear-theme-btn" @click="clearVisitorTheme">恢复默认</button>
-            <button v-if="visitorMode === 'network'" class="btn save-theme-btn" @click="saveVisitorTheme">保存并应用</button>
+            <button class="btn save-theme-btn" @click="saveVisitorTheme">保存并应用</button>
           </div>
         </div>
       </div>
@@ -146,7 +134,7 @@
 
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue';
-import { getMenus, getCards, getAds, getFriends, getConfig, searchCards } from '../api';
+import { getMenus, getCards, getAds, getFriends, getConfig, searchCards, detectMedia } from '../api';
 import MenuBar from '../components/MenuBar.vue';
 import CardGrid from '../components/CardGrid.vue';
 
@@ -165,55 +153,88 @@ const globalBgType = ref('auto');
 const customBackground = ref('');
 const customBgType = ref('auto');
 const showThemeSettings = ref(false);
-const visitorMode = ref('local');
 const visitorBgInput = ref('');
 const visitorBgType = ref('auto');
 const isBgLoaded = ref(false);
 const bgVideoRef = ref(null);
 const videoFailed = ref(false);
 const needsInteraction = ref(false);
+const detecting = ref(false);
+const detectResult = ref(null);
 
 const transparentPixel = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
 
-// 判断是否为视频
+// 判断是否为视频：优先看 bg_type，再看后缀
 function isVideoType(url, bgType) {
   if (bgType === 'video') return true;
   if (bgType === 'image') return false;
   if (!url) return false;
-  if (url.startsWith('data:video/')) return true;
   const lower = url.toLowerCase();
   return lower.includes('.mp4') || lower.includes('.webm') || lower.includes('.ogg');
 }
 
 const isVideoBg = computed(() => isVideoType(customBackground.value, customBgType.value));
+
+// 关键修复：视频URL不能用作CSS background-image
+// shouldShowVideo = 是视频 且 没失败
+// shouldShowImage = 有URL 且 不是视频类型（视频失败时不降级为图片，只显示底层渐变）
 const shouldShowVideo = computed(() => isVideoBg.value && !videoFailed.value);
 const shouldShowImage = computed(() => customBackground.value && !isVideoBg.value);
 
 // 视频播放逻辑
-function onVideoCanPlay() { isBgLoaded.value = true; attemptPlay(); }
-function onVideoLoadedData() { if (!isBgLoaded.value) { isBgLoaded.value = true; attemptPlay(); } }
-function onVideoError() { console.warn('[Video] 视频加载失败'); videoFailed.value = true; isBgLoaded.value = true; }
+function onVideoCanPlay() {
+  isBgLoaded.value = true;
+  attemptPlay();
+}
+function onVideoLoadedData() {
+  if (!isBgLoaded.value) {
+    isBgLoaded.value = true;
+    attemptPlay();
+  }
+}
+function onVideoError() {
+  console.warn('[Video] 视频加载失败，降级为渐变背景');
+  videoFailed.value = true;
+  isBgLoaded.value = true;
+}
+
+// [修改处 2] 新增视频结束事件处理函数，用于强制循环播放
+// 当原生 loop 失效，视频播放到底时会触发这个方法
 function onVideoEnded() {
   const video = bgVideoRef.value;
   if (video) {
+    // 将视频的当前时间重置为 0 秒（回到开头）
     video.currentTime = 0;
+    // 再次调用播放方法
     const p = video.play();
-    if (p && p.catch) p.catch(() => { videoFailed.value = true; });
+    if (p && p.catch) {
+      p.catch(err => {
+        // 如果重播失败，打印警告并启动降级处理
+        console.warn('[Video] 循环播放失败', err);
+        videoFailed.value = true;
+      });
+    }
   }
 }
+
 function attemptPlay() {
   const video = bgVideoRef.value;
   if (!video) return;
   video.muted = true;
   const p = video.play();
-  if (p && p.catch) p.catch(err => {
-    if (err.name === 'NotAllowedError') needsInteraction.value = true;
-    else videoFailed.value = true;
-  });
+  if (p && p.catch) {
+    p.catch(err => {
+      if (err.name === 'NotAllowedError') needsInteraction.value = true;
+      else { videoFailed.value = true; }
+    });
+  }
 }
 function forcePlay() {
   const video = bgVideoRef.value;
-  if (video) { video.muted = true; video.play().then(() => { needsInteraction.value = false; }).catch(() => { videoFailed.value = true; }); }
+  if (video) {
+    video.muted = true;
+    video.play().then(() => { needsInteraction.value = false; }).catch(() => { videoFailed.value = true; });
+  }
   needsInteraction.value = false;
 }
 
@@ -246,88 +267,17 @@ watch(customBackground, (newUrl) => {
   }
 }, { immediate: true });
 
-// ========== IndexedDB 本地壁纸存储 ==========
-function openDB() {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open('VisitorThemeDB', 1);
-    request.onupgradeneeded = (e) => {
-      const db = e.target.result;
-      if (!db.objectStoreNames.contains('wallpapers')) db.createObjectStore('wallpapers', { keyPath: 'id' });
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
-}
-
-// 访客选择本地文件 - 强制覆盖 IndexedDB 缓存并删除旧文件
-async function handleVisitorLocalFile(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-  const type = file.type.includes('video') ? 'video' : 'image';
-  const reader = new FileReader();
-  reader.readAsDataURL(file);
-  reader.onload = async (e) => {
-    const base64Data = e.target.result;
-    try {
-      const db = await openDB();
-      const tx = db.transaction('wallpapers', 'readwrite');
-      const store = tx.objectStore('wallpapers');
-      // 先清空所有旧缓存，再写入新数据
-      store.clear();
-      store.put({ id: 'current', data: base64Data, type: type, timestamp: Date.now() });
-      tx.oncomplete = () => {
-        customBackground.value = base64Data;
-        customBgType.value = type;
-        // 标记使用本地缓存，清除网络链接设置（互斥）
-        localStorage.setItem('visitor_use_local_db', 'true');
-        localStorage.removeItem('visitor_bg');
-        localStorage.removeItem('visitor_bg_type');
-        showThemeSettings.value = false;
-        alert('本地壁纸设置成功！');
-      };
-    } catch (err) {
-      console.error('IndexedDB 写入失败:', err);
-      alert('壁纸保存失败，请重试');
-    }
-  };
-}
-
-// 网页加载时读取缓存的壁纸
-async function loadLocalWallpaper() {
-  if (localStorage.getItem('visitor_use_local_db') === 'true') {
-    try {
-      const db = await openDB();
-      const tx = db.transaction('wallpapers', 'readonly');
-      const store = tx.objectStore('wallpapers');
-      const request = store.get('current');
-      request.onsuccess = () => {
-        if (request.result) {
-          customBackground.value = request.result.data;
-          customBgType.value = request.result.type;
-        } else {
-          localStorage.removeItem('visitor_use_local_db');
-          customBackground.value = globalBackground.value;
-          customBgType.value = globalBgType.value;
-        }
-      };
-    } catch (err) {
-      console.log('读取本地壁纸缓存失败', err);
-      customBackground.value = globalBackground.value;
-      customBgType.value = globalBgType.value;
-    }
-  } else {
-    const localBg = localStorage.getItem('visitor_bg');
-    const localBgType = localStorage.getItem('visitor_bg_type');
-    if (localBg) {
-      customBackground.value = localBg;
-      customBgType.value = localBgType || 'auto';
-      visitorBgInput.value = localBg;
-      visitorBgType.value = localBgType || 'auto';
-    } else {
-      customBackground.value = globalBackground.value;
-      customBgType.value = globalBgType.value;
-    }
-  }
+// 检测媒体类型
+async function handleDetect() {
+  if (!visitorBgInput.value.trim()) return;
+  detecting.value = true; detectResult.value = null;
+  try {
+    const res = await detectMedia(visitorBgInput.value.trim());
+    detectResult.value = res.data;
+    if (res.data.type === 'video') visitorBgType.value = 'video';
+    else if (res.data.type === 'image') visitorBgType.value = 'image';
+  } catch { detectResult.value = { type: 'unknown' }; }
+  finally { detecting.value = false; }
 }
 
 function saveVisitorTheme() {
@@ -335,30 +285,18 @@ function saveVisitorTheme() {
   if (url) {
     localStorage.setItem('visitor_bg', url);
     localStorage.setItem('visitor_bg_type', visitorBgType.value);
-    localStorage.removeItem('visitor_use_local_db');
-    // 清空 IndexedDB 中的本地壁纸
-    openDB().then(db => { const tx = db.transaction('wallpapers', 'readwrite'); tx.objectStore('wallpapers').clear(); }).catch(() => {});
     customBackground.value = url;
     customBgType.value = visitorBgType.value;
-  } else {
-    clearVisitorTheme();
-  }
+  } else { clearVisitorTheme(); }
   showThemeSettings.value = false;
 }
-
 function clearVisitorTheme() {
-  localStorage.removeItem('visitor_bg');
-  localStorage.removeItem('visitor_bg_type');
-  localStorage.removeItem('visitor_use_local_db');
-  openDB().then(db => { const tx = db.transaction('wallpapers', 'readwrite'); tx.objectStore('wallpapers').clear(); }).catch(() => {});
-  visitorBgInput.value = '';
-  visitorBgType.value = 'auto';
-  customBackground.value = globalBackground.value;
-  customBgType.value = globalBgType.value;
+  localStorage.removeItem('visitor_bg'); localStorage.removeItem('visitor_bg_type');
+  visitorBgInput.value = ''; visitorBgType.value = 'auto';
+  customBackground.value = globalBackground.value; customBgType.value = globalBgType.value;
   showThemeSettings.value = false;
 }
 
-// ========== 搜索逻辑 ==========
 const searchEngines = [
   { name: 'google', label: 'Google', placeholder: 'Google 搜索...', url: q => `https://www.google.com/search?q=${encodeURIComponent(q)}` },
   { name: 'baidu', label: '百度', placeholder: '百度搜索...', url: q => `https://www.baidu.com/s?wd=${encodeURIComponent(q)}` },
@@ -368,37 +306,15 @@ const searchEngines = [
 ];
 const selectedEngine = ref(searchEngines[0]);
 function selectEngine(engine) { selectedEngine.value = engine; }
-function clearSearch() {
-  searchQuery.value = '';
-  if (!activeMenu.value && menus.value.length > 0) activeMenu.value = menus.value[0];
-  loadCards();
-}
+function clearSearch() { searchQuery.value = ''; if (!activeMenu.value && menus.value.length > 0) activeMenu.value = menus.value[0]; loadCards(); }
 const filteredCards = computed(() => {
   if (!searchQuery.value) return cards.value;
-  return cards.value.filter(c =>
-    c.title.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-    c.url.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-    (c.desc && c.desc.toLowerCase().includes(searchQuery.value.toLowerCase()))
-  );
+  return cards.value.filter(c => c.title.toLowerCase().includes(searchQuery.value.toLowerCase()) || c.url.toLowerCase().includes(searchQuery.value.toLowerCase()) || (c.desc && c.desc.toLowerCase().includes(searchQuery.value.toLowerCase())));
 });
-
 let searchTimer = null;
 watch(searchQuery, (v) => {
-  if (v.trim() === '') {
-    if (!activeMenu.value && menus.value.length > 0) activeMenu.value = menus.value[0];
-    loadCards();
-    return;
-  }
-  if (selectedEngine.value.name === 'site') {
-    clearTimeout(searchTimer);
-    searchTimer = setTimeout(async () => {
-      try {
-        const r = await searchCards(v.trim());
-        if (r.data.length > 0) { cards.value = r.data; activeMenu.value = null; activeSubMenu.value = null; }
-        else cards.value = [];
-      } catch {}
-    }, 100);
-  }
+  if (v.trim() === '') { if (!activeMenu.value && menus.value.length > 0) activeMenu.value = menus.value[0]; loadCards(); return; }
+  if (selectedEngine.value.name === 'site') { clearTimeout(searchTimer); searchTimer = setTimeout(async () => { try { const r = await searchCards(v.trim()); if (r.data.length > 0) { cards.value = r.data; activeMenu.value = null; activeSubMenu.value = null; } else cards.value = []; } catch {} }, 100); }
 });
 
 onMounted(async () => {
@@ -408,11 +324,11 @@ onMounted(async () => {
     if (configRes.data.bg_type) globalBgType.value = configRes.data.bg_type;
     if (configRes.data.title) document.title = configRes.data.title;
   } catch (e) { console.error('Failed to load config:', e); }
-
-  // 加载壁纸: 优先 IndexedDB 本地文件 > localStorage 网络链接 > 全局设置
-  await loadLocalWallpaper();
+  const localBg = localStorage.getItem('visitor_bg');
+  const localBgType = localStorage.getItem('visitor_bg_type');
+  if (localBg) { customBackground.value = localBg; customBgType.value = localBgType || 'auto'; visitorBgInput.value = localBg; visitorBgType.value = localBgType || 'auto'; }
+  else { customBackground.value = globalBackground.value; customBgType.value = globalBgType.value; }
   setupTouchPlay();
-
   const res = await getMenus(); menus.value = res.data;
   if (menus.value.length) { activeMenu.value = menus.value[0]; loadCards(); }
   const adRes = await getAds(); leftAds.value = adRes.data.filter(ad => ad.position === 'left'); rightAds.value = adRes.data.filter(ad => ad.position === 'right');
@@ -420,31 +336,16 @@ onMounted(async () => {
 });
 
 async function selectMenu(menu, parentMenu = null) {
-  if (parentMenu) { activeMenu.value = parentMenu; activeSubMenu.value = menu; }
-  else { activeMenu.value = menu; activeSubMenu.value = null; }
+  if (parentMenu) { activeMenu.value = parentMenu; activeSubMenu.value = menu; } else { activeMenu.value = menu; activeSubMenu.value = null; }
   loadCards();
 }
-async function loadCards() {
-  if (!activeMenu.value) return;
-  const r = await getCards(activeMenu.value.id, activeSubMenu.value?.id);
-  cards.value = r.data;
-}
+async function loadCards() { if (!activeMenu.value) return; const r = await getCards(activeMenu.value.id, activeSubMenu.value?.id); cards.value = r.data; }
 async function handleSearch() {
   if (!searchQuery.value.trim()) return;
-  if (selectedEngine.value.name === 'site') {
-    try {
-      const r = await searchCards(searchQuery.value.trim());
-      if (r.data.length > 0) { cards.value = r.data; activeMenu.value = null; activeSubMenu.value = null; }
-      else alert('未找到相关内容');
-    } catch { alert('搜索时发生错误'); }
-  } else {
-    window.open(selectedEngine.value.url(searchQuery.value), '_blank');
-  }
+  if (selectedEngine.value.name === 'site') { try { const r = await searchCards(searchQuery.value.trim()); if (r.data.length > 0) { cards.value = r.data; activeMenu.value = null; activeSubMenu.value = null; } else alert('未找到相关内容'); } catch { alert('搜索时发生错误'); } }
+  else window.open(selectedEngine.value.url(searchQuery.value), '_blank');
 }
-function handleLogoError(e) {
-  e.target.style.display = 'none';
-  if (e.target.nextElementSibling) e.target.nextElementSibling.style.display = 'flex';
-}
+function handleLogoError(e) { e.target.style.display = 'none'; if (e.target.nextElementSibling) e.target.nextElementSibling.style.display = 'flex'; }
 </script>
 
 <style scoped>
@@ -510,21 +411,22 @@ function handleLogoError(e) {
 @media (min-width: 768px) { .friend-link-info h4 { font-size: 13px; } }
 .theme-modal { width: 420px !important; height: auto !important; min-height: 220px; }
 @media (max-width: 767px) { .theme-modal { width: 100% !important; } }
-.upload-tabs { display: flex; gap: 8px; margin-bottom: 14px; }
-.upload-tabs button { flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #d0d7e2; background: #f8f9fa; cursor: pointer; font-weight: 600; font-size: 13px; min-height: 42px; -webkit-tap-highlight-color: transparent; transition: 0.2s; }
-.upload-tabs button.active { background: #2566d8; color: white; border-color: #2566d8; }
-.tab-content { margin-bottom: 14px; }
 .theme-desc { font-size: 12px; color: #555; margin-bottom: 12px; line-height: 1.6; background: #f0f4f8; padding: 10px; border-radius: 6px; border-left: 3px solid #2566d8; }
 .theme-input { width: 100%; padding: 12px 16px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 14px; background: #fff; margin-bottom: 12px; box-sizing: border-box; }
 .theme-input:focus { outline: none; border-color: #2566d8; box-shadow: 0 0 0 2px rgba(37,102,216,0.1); }
-.file-input { width: 100%; margin-top: 4px; }
 .type-selector { display: flex; gap: 8px; margin-bottom: 10px; }
 .type-btn { flex: 1; padding: 10px 8px; border-radius: 8px; border: 1px solid #cbd5e1; background: #fff; color: #555; font-size: 12px; cursor: pointer; text-align: center; min-height: 40px; -webkit-tap-highlight-color: transparent; }
 .type-btn.active { background: #2566d8; color: #fff; border-color: #2566d8; }
+.detect-btn { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #f8f9fa; color: #555; font-size: 12px; cursor: pointer; margin-bottom: 8px; min-height: 40px; -webkit-tap-highlight-color: transparent; }
+.detect-btn:disabled { opacity: 0.5; }
+.detect-btn:active { background: #e2e8f0; }
+.detect-result { font-size: 12px; padding: 8px 10px; border-radius: 6px; margin-bottom: 12px; }
+.detect-result.video { background: #d1fae5; color: #065f46; }
+.detect-result.image { background: #dbeafe; color: #1e40af; }
+.detect-result.unknown { background: #fef3c7; color: #92400e; }
 .theme-actions { display: flex; gap: 10px; }
-.btn { border: none; border-radius: 8px; padding: 12px; cursor: pointer; font-weight: 500; min-height: 48px; -webkit-tap-highlight-color: transparent; }
-.save-theme-btn { flex: 1; background: #2566d8; color: white; }
+.save-theme-btn { flex: 1; background: #2566d8; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: 500; min-height: 48px; -webkit-tap-highlight-color: transparent; }
 .save-theme-btn:active { background: #1a4ba3; }
-.clear-theme-btn { flex: 1; background: #fff; color: #64748b; border: 1px solid #cbd5e1; }
+.clear-theme-btn { flex: 1; background: #fff; color: #64748b; border: 1px solid #cbd5e1; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: 500; min-height: 48px; -webkit-tap-highlight-color: transparent; }
 .clear-theme-btn:active { color: #ef4444; border-color: #ef4444; }
 </style>
