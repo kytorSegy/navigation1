@@ -47,6 +47,3 @@ export const parseLink = (url) => request.get(`/parse-link?url=${encodeURICompon
 
 export const updateMenusOrder = (data) => request.post('/menus/update-order', data);
 export const updateSubMenusOrder = (menuId, data) => request.post(`/menus/${menuId}/submenus/update-order`, data);
-
-// ============ 新增：检测媒体类型 ============
-export const detectMedia = (url) => request.get(`/detect-media?url=${encodeURIComponent(url)}`);

@@ -1,7 +1,10 @@
 <template>
   <div class="system-manage">
-    <div class="system-header"><h2 class="section-title">系统全局设置</h2></div>
+    <div class="system-header">
+      <h2 class="section-title">系统全局设置</h2>
+    </div>
     <div class="system-card">
+      
       <div class="form-group">
         <label>网站浏览器标题：</label>
         <input v-model="siteTitle" class="input" placeholder="请输入你的专属导航网站标题" />
@@ -55,7 +58,6 @@ import { getConfig, updateConfig } from '../../api';
 // 【新手讲解】在 Vue 中使用 ref 定义页面的各种状态
 const siteTitle = ref('');
 const bgUrl = ref('');
-const bgType = ref('auto');
 const loading = ref(false);
 const message = ref('');
 const messageType = ref('success');
@@ -70,12 +72,19 @@ const caching = ref(false);
 onMounted(async () => {
   try {
     const res = await getConfig();
+    
+    // 给标题框赋值
     siteTitle.value = res.data.title || '';
-    bgType.value = res.data.bg_type || 'auto';
+
+    // 把带有代理前缀的URL还原成肉眼能看懂的真实URL
     let url = res.data.background || '';
-    if (url.includes('/api/background?url=')) url = decodeURIComponent(url.split('url=')[1]);
+    if (url.includes('/api/background?url=')) {
+      url = decodeURIComponent(url.split('url=')[1]);
+    }
     bgUrl.value = url;
-  } catch (err) { console.error('获取配置失败:', err); }
+  } catch (err) {
+    console.error('获取配置失败:', err);
+  }
 });
 
 // 【功能 1】处理本地文件上传，调用修改后的 /api/upload
@@ -145,16 +154,28 @@ async function handleCacheNetwork() {
 
 // 保存最终到数据库
 async function handleSave() {
-  loading.value = true; message.value = '';
+  loading.value = true;
+  message.value = '';
   try {
-    await updateConfig({ title: siteTitle.value, background: bgUrl.value, bg_type: bgType.value });
+    // 核心：把标题（title）和壁纸（background）一起提交给后端保存
+    await updateConfig({ 
+      title: siteTitle.value,
+      background: bgUrl.value 
+    });
     message.value = '设置保存成功！快去首页刷新看看效果吧！';
     messageType.value = 'success';
-    if (siteTitle.value) document.title = siteTitle.value;
+    
+    // 如果你在后台保存了标题，让当前后台页面的标题也跟着变一下
+    if (siteTitle.value) {
+      document.title = siteTitle.value;
+    }
   } catch (err) {
     message.value = '保存失败：' + (err.response?.data?.error || err.message);
     messageType.value = 'error';
-  } finally { loading.value = false; setTimeout(() => message.value = '', 5000); }
+  } finally {
+    loading.value = false;
+    setTimeout(() => message.value = '', 5000);
+  }
 }
 </script>
 

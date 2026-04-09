@@ -1,6 +1,6 @@
 <template>
   <div class="home-container">
-
+    
     <div class="bg-placeholder"></div>
 
     <video v-if="shouldShowVideo" class="bg-video" :class="{ 'fade-in': isBgLoaded }" :src="customBackground" autoplay loop muted playsinline webkit-playsinline preload="auto" ref="bgVideoRef" @canplay="onVideoCanPlay" @loadeddata="onVideoLoadedData" @error="onVideoError" @ended="onVideoEnded" :poster="transparentPixel"></video>
@@ -19,7 +19,12 @@
       <div class="search-section">
         <div class="search-box-wrapper">
           <div class="search-engine-select">
-            <button v-for="engine in searchEngines" :key="engine.name" :class="['engine-btn', {active: selectedEngine.name === engine.name}]" @click="selectEngine(engine)">{{ engine.label }}</button>
+            <button v-for="engine in searchEngines" :key="engine.name"
+              :class="['engine-btn', {active: selectedEngine.name === engine.name}]"
+              @click="selectEngine(engine)"
+            >
+              {{ engine.label }}
+            </button>
           </div>
           <div class="search-container">
             <input v-model="searchQuery" type="text" :placeholder="selectedEngine.placeholder" class="search-input" @keyup.enter="handleSearch" enterkeyhint="search" autocomplete="off" />
@@ -33,17 +38,17 @@
       <div v-if="rightAds.length" class="ad-space-fixed right-ad-fixed"><a v-for="ad in rightAds" :key="ad.id" :href="ad.url" target="_blank"><img :src="ad.img" alt="" /></a></div>
 
       <CardGrid :cards="filteredCards"/>
-
+      
       <footer class="footer">
         <div class="footer-content">
           <button @click="showFriendLinks = true" class="friend-link-btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>友情链接</button>
           <p class="copyright">Copyright © 2025 Nav-Item | <a href="https://github.com/eooce/Nav-Item" target="_blank" class="footer-link">Powered by eooce</a></p>
         </div>
       </footer>
-    </div>
+    </div> 
 
     <div v-if="showThemeSettings" class="modal-overlay" @click="showThemeSettings = false">
-      <div class="modal-content theme-modal modal-bottom-sheet" @click.stop>
+      <div class="modal-content theme-modal" @click.stop>
         <div class="modal-header">
           <h3>个性化访客壁纸设置</h3>
           <button @click="showThemeSettings = false" class="close-btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"></path></svg></button>
@@ -241,8 +246,9 @@ function saveVisitorTheme() {
     localStorage.setItem('visitor_bg_type', visitorBgType.value);
     localStorage.removeItem('visitor_use_local_db'); // 取消本地缓存标记
     customBackground.value = url;
-    customBgType.value = visitorBgType.value;
-  } else { clearVisitorTheme(); }
+  } else {
+    clearVisitorTheme();
+  }
   showThemeSettings.value = false;
 }
 
@@ -266,15 +272,30 @@ const searchEngines = [
   { name: 'google', label: 'Google', placeholder: 'Google 搜索...', url: q => `https://www.google.com/search?q=${encodeURIComponent(q)}` },
   { name: 'baidu', label: '百度', placeholder: '百度搜索...', url: q => `https://www.baidu.com/s?wd=${encodeURIComponent(q)}` },
   { name: 'bing', label: 'Bing', placeholder: 'Bing 搜索...', url: q => `https://www.bing.com/search?q=${encodeURIComponent(q)}` },
-  { name: 'github', label: 'GitHub', placeholder: 'GitHub 搜索...', url: q => `https://github.com/search?q=${encodeURIComponent(q)}&type=repositories` },
-  { name: 'site', label: '站内', placeholder: '站内搜索...', url: q => q }
+  { name: 'github', label: 'github', placeholder: 'GitHub 搜索...', url: q => `https://github.com/search?q=${encodeURIComponent(q)}&type=repositories` },
+  { name: 'site', label: '站内', placeholder: '站内搜索...', url: q => `/search?query=${encodeURIComponent(q)}` }
 ];
 const selectedEngine = ref(searchEngines[0]);
-function selectEngine(engine) { selectedEngine.value = engine; }
-function clearSearch() { searchQuery.value = ''; if (!activeMenu.value && menus.value.length > 0) activeMenu.value = menus.value[0]; loadCards(); }
+
+function selectEngine(engine) {
+  selectedEngine.value = engine;
+}
+
+function clearSearch() {
+  searchQuery.value = '';
+  if (!activeMenu.value && menus.value.length > 0) {
+    activeMenu.value = menus.value[0];
+  }
+  loadCards();
+}
+
 const filteredCards = computed(() => {
   if (!searchQuery.value) return cards.value;
-  return cards.value.filter(c => c.title.toLowerCase().includes(searchQuery.value.toLowerCase()) || c.url.toLowerCase().includes(searchQuery.value.toLowerCase()) || (c.desc && c.desc.toLowerCase().includes(searchQuery.value.toLowerCase())));
+  return cards.value.filter(card => 
+    card.title.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+    card.url.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+    (card.desc && card.desc.toLowerCase().includes(searchQuery.value.toLowerCase()))
+  );
 });
 
 onMounted(async () => {
@@ -295,14 +316,48 @@ onMounted(async () => {
 });
 
 async function selectMenu(menu, parentMenu = null) {
-  if (parentMenu) { activeMenu.value = parentMenu; activeSubMenu.value = menu; } else { activeMenu.value = menu; activeSubMenu.value = null; }
+  if (parentMenu) {
+    activeMenu.value = parentMenu;
+    activeSubMenu.value = menu;
+  } else {
+    activeMenu.value = menu;
+    activeSubMenu.value = null;
+  }
   loadCards();
 }
-async function loadCards() { if (!activeMenu.value) return; const r = await getCards(activeMenu.value.id, activeSubMenu.value?.id); cards.value = r.data; }
+
+async function loadCards() {
+  if (!activeMenu.value) return;
+  const res = await getCards(activeMenu.value.id, activeSubMenu.value?.id);
+  cards.value = res.data;
+}
+
 async function handleSearch() {
   if (!searchQuery.value.trim()) return;
-  if (selectedEngine.value.name === 'site') { try { const r = await searchCards(searchQuery.value.trim()); if (r.data.length > 0) { cards.value = r.data; activeMenu.value = null; activeSubMenu.value = null; } else alert('未找到相关内容'); } catch { alert('搜索时发生错误'); } }
-  else window.open(selectedEngine.value.url(searchQuery.value), '_blank');
+  if (selectedEngine.value.name === 'site') {
+    try {
+      const res = await searchCards(searchQuery.value.trim());
+      const matched = res.data;
+      if (matched.length > 0) {
+        cards.value = matched;
+        activeMenu.value = null;
+        activeSubMenu.value = null;
+      } else {
+        alert('未找到相关内容，请尝试换一个关键词');
+      }
+    } catch (err) {
+      console.error('站内搜索出错:', err);
+      alert('搜索时发生错误，请稍后再试');
+    }
+  } else {
+    const url = selectedEngine.value.url(searchQuery.value);
+    window.open(url, '_blank');
+  }
+}
+
+function handleLogoError(event) {
+  event.target.style.display = 'none';
+  event.target.nextElementSibling.style.display = 'flex';
 }
 </script>
 
