@@ -47,6 +47,7 @@
       </footer>
     </div> 
 
+    <!-- 访客壁纸设置弹窗 -->
     <div v-if="showThemeSettings" class="modal-overlay" @click="showThemeSettings = false">
       <div class="modal-content theme-modal" @click.stop>
         <div class="modal-header">
@@ -55,12 +56,12 @@
         </div>
         <div class="modal-body">
           <div class="upload-tabs">
-            <button @click="visitorMode = 'network'" :class="{active: visitorMode === 'network'}">网络链接</button>
-            <button @click="visitorMode = 'local'" :class="{active: visitorMode === 'local'}">读取本地文件</button>
+            <button @click="visitorMode = 'local'" :class="{active: visitorMode === 'local'}">📁 本地图片/视频</button>
+            <button @click="visitorMode = 'network'" :class="{active: visitorMode === 'network'}">🌐 网络链接</button>
           </div>
 
           <div v-if="visitorMode === 'local'" class="tab-content">
-            <p class="theme-desc">选择你电脑/手机里的图片或视频作为壁纸，只保存在你的浏览器中哦。</p>
+            <p class="theme-desc">选择你电脑/手机里的图片或视频作为壁纸，只保存在你的浏览器中。</p>
             <input type="file" @change="handleVisitorLocalFile" accept="image/*,video/*" />
           </div>
 
@@ -106,7 +107,7 @@ const customBackground = ref('');
 const customBgType = ref('auto');
 const showThemeSettings = ref(false);
 
-const visitorMode = ref('network'); // 默认访客模式
+const visitorMode = ref('local');
 const visitorBgInput = ref('');
 const visitorBgType = ref('auto');
 const isBgLoaded = ref(false);
@@ -116,13 +117,11 @@ const needsInteraction = ref(false);
 
 const transparentPixel = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
 
-// 判断视频逻辑保持不变
 function isVideoType(url, bgType) {
   if (bgType === 'video') return true;
   if (bgType === 'image') return false;
   if (!url) return false;
   const lower = url.toLowerCase();
-  // 注意，Base64 数据需要看它的头部格式
   if (url.startsWith('data:video/')) return true;
   return lower.includes('.mp4') || lower.includes('.webm') || lower.includes('.ogg');
 }
@@ -162,8 +161,7 @@ watch(customBackground, (newUrl) => {
   }
 }, { immediate: true });
 
-// --- 【新手必看】访客本地壁纸的 IndexedDB 核心逻辑 ---
-// 为什么不用 localStorage？因为一张图片轻松几MB，localStorage 只能存5MB，很快就崩了
+// --- IndexedDB 核心逻辑 ---
 function openDB() {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open('VisitorThemeDB', 1);
@@ -176,7 +174,7 @@ function openDB() {
   });
 }
 
-// 访客选择本地文件事件
+// 【核心改动】访客选择本地文件 - 强制覆盖 IndexedDB 缓存并删除旧文件
 async function handleVisitorLocalFile(event) {
   const file = event.target.files[0];
   if (!file) return;
@@ -184,34 +182,41 @@ async function handleVisitorLocalFile(event) {
   const type = file.type.includes('video') ? 'video' : 'image';
   const reader = new FileReader();
   
-  // 读成可以在浏览器里直接渲染的 DataURL (Base64)
   reader.readAsDataURL(file);
   reader.onload = async (e) => {
     const base64Data = e.target.result;
     
-    // 打开数据库
-    const db = await openDB();
-    const tx = db.transaction('wallpapers', 'readwrite');
-    const store = tx.objectStore('wallpapers');
-    
-    // 【核心需求满足】清空旧壁纸，避免缓存越来越大
-    store.clear();
-    
-    // 存入新壁纸
-    store.put({ id: 'current', data: base64Data, type: type });
-    
-    // 应用到当前界面
-    customBackground.value = base64Data;
-    customBgType.value = type;
-    
-    // 在普通缓存中做个标记，表示当前正在用本地缓存
-    localStorage.setItem('visitor_use_local_db', 'true');
-    showThemeSettings.value = false;
-    alert("本地壁纸设置成功！");
+    try {
+      const db = await openDB();
+      const tx = db.transaction('wallpapers', 'readwrite');
+      const store = tx.objectStore('wallpapers');
+      
+      // 【核心】先清空所有旧缓存，再写入新数据
+      store.clear();
+      store.put({ id: 'current', data: base64Data, type: type, timestamp: Date.now() });
+      
+      tx.oncomplete = () => {
+        // 应用到当前界面
+        customBackground.value = base64Data;
+        customBgType.value = type;
+        
+        // 标记当前使用本地缓存
+        localStorage.setItem('visitor_use_local_db', 'true');
+        // 清除网络链接设置（互斥）
+        localStorage.removeItem('visitor_bg');
+        localStorage.removeItem('visitor_bg_type');
+        
+        showThemeSettings.value = false;
+        alert('本地壁纸设置成功！');
+      };
+    } catch (err) {
+      console.error('IndexedDB 写入失败:', err);
+      alert('壁纸保存失败，请重试');
+    }
   };
 }
 
-// 网页加载时，尝试读取缓存的壁纸
+// 网页加载时读取缓存的壁纸
 async function loadLocalWallpaper() {
   if (localStorage.getItem('visitor_use_local_db') === 'true') {
     try {
@@ -223,11 +228,19 @@ async function loadLocalWallpaper() {
         if (request.result) {
           customBackground.value = request.result.data;
           customBgType.value = request.result.type;
+        } else {
+          // IndexedDB 中没有数据，回退到全局设置
+          localStorage.removeItem('visitor_use_local_db');
+          customBackground.value = globalBackground.value;
+          customBgType.value = globalBgType.value;
         }
       };
-    } catch (err) { console.log('读取本地壁纸缓存失败', err); }
+    } catch (err) {
+      console.log('读取本地壁纸缓存失败', err);
+      customBackground.value = globalBackground.value;
+      customBgType.value = globalBgType.value;
+    }
   } else {
-    // 如果不是用的本地文件，那就去读正常的网络链接
     const localBg = localStorage.getItem('visitor_bg');
     const localBgType = localStorage.getItem('visitor_bg_type');
     if (localBg) { 
@@ -244,8 +257,14 @@ function saveVisitorTheme() {
   if (url) {
     localStorage.setItem('visitor_bg', url);
     localStorage.setItem('visitor_bg_type', visitorBgType.value);
-    localStorage.removeItem('visitor_use_local_db'); // 取消本地缓存标记
+    localStorage.removeItem('visitor_use_local_db');
+    // 清空 IndexedDB 中的本地壁纸
+    openDB().then(db => {
+      const tx = db.transaction('wallpapers', 'readwrite');
+      tx.objectStore('wallpapers').clear();
+    }).catch(() => {});
     customBackground.value = url;
+    customBgType.value = visitorBgType.value;
   } else {
     clearVisitorTheme();
   }
@@ -256,18 +275,16 @@ function clearVisitorTheme() {
   localStorage.removeItem('visitor_bg'); 
   localStorage.removeItem('visitor_bg_type');
   localStorage.removeItem('visitor_use_local_db');
-  // 同时清空 IndexedDB
   openDB().then(db => {
     const tx = db.transaction('wallpapers', 'readwrite');
     tx.objectStore('wallpapers').clear();
-  });
+  }).catch(() => {});
   
   visitorBgInput.value = ''; visitorBgType.value = 'auto';
   customBackground.value = globalBackground.value; customBgType.value = globalBgType.value;
   showThemeSettings.value = false;
 }
 
-// ------ 以下为原来的搜索和菜单逻辑，未做改动 ------
 const searchEngines = [
   { name: 'google', label: 'Google', placeholder: 'Google 搜索...', url: q => `https://www.google.com/search?q=${encodeURIComponent(q)}` },
   { name: 'baidu', label: '百度', placeholder: '百度搜索...', url: q => `https://www.baidu.com/s?wd=${encodeURIComponent(q)}` },
@@ -277,15 +294,11 @@ const searchEngines = [
 ];
 const selectedEngine = ref(searchEngines[0]);
 
-function selectEngine(engine) {
-  selectedEngine.value = engine;
-}
+function selectEngine(engine) { selectedEngine.value = engine; }
 
 function clearSearch() {
   searchQuery.value = '';
-  if (!activeMenu.value && menus.value.length > 0) {
-    activeMenu.value = menus.value[0];
-  }
+  if (!activeMenu.value && menus.value.length > 0) activeMenu.value = menus.value[0];
   loadCards();
 }
 
@@ -306,7 +319,6 @@ onMounted(async () => {
     if (configRes.data.title) document.title = configRes.data.title;
   } catch (e) { console.error('Failed to load config:', e); }
   
-  // 重点：挂载时调用读取本地缓存的逻辑
   await loadLocalWallpaper();
 
   const res = await getMenus(); menus.value = res.data;
@@ -316,13 +328,8 @@ onMounted(async () => {
 });
 
 async function selectMenu(menu, parentMenu = null) {
-  if (parentMenu) {
-    activeMenu.value = parentMenu;
-    activeSubMenu.value = menu;
-  } else {
-    activeMenu.value = menu;
-    activeSubMenu.value = null;
-  }
+  if (parentMenu) { activeMenu.value = parentMenu; activeSubMenu.value = menu; }
+  else { activeMenu.value = menu; activeSubMenu.value = null; }
   loadCards();
 }
 
@@ -338,31 +345,17 @@ async function handleSearch() {
     try {
       const res = await searchCards(searchQuery.value.trim());
       const matched = res.data;
-      if (matched.length > 0) {
-        cards.value = matched;
-        activeMenu.value = null;
-        activeSubMenu.value = null;
-      } else {
-        alert('未找到相关内容，请尝试换一个关键词');
-      }
-    } catch (err) {
-      console.error('站内搜索出错:', err);
-      alert('搜索时发生错误，请稍后再试');
-    }
+      if (matched.length > 0) { cards.value = matched; activeMenu.value = null; activeSubMenu.value = null; }
+      else { alert('未找到相关内容，请尝试换一个关键词'); }
+    } catch (err) { console.error('站内搜索出错:', err); alert('搜索时发生错误，请稍后再试'); }
   } else {
     const url = selectedEngine.value.url(searchQuery.value);
     window.open(url, '_blank');
   }
 }
-
-function handleLogoError(event) {
-  event.target.style.display = 'none';
-  event.target.nextElementSibling.style.display = 'flex';
-}
 </script>
 
 <style scoped>
-/* 保持你的原来样式即可，增加少量针对选项卡的微调 */
 .home-container { min-height: 100vh; min-height: 100dvh; position: relative; display: flex; flex-direction: column; }
 .bg-placeholder { position: fixed; inset: 0; background: linear-gradient(135deg, #1a1c29, #2a2d3e); z-index: -1; }
 .bg-image, .bg-video { opacity: 0; transition: opacity 1.2s ease-in-out; }
