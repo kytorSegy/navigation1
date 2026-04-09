@@ -3,7 +3,27 @@ const db = require('../db');
 const auth = require('./authMiddleware');
 const router = express.Router();
 
-// ✅ 全站搜索接口 —— 必须放在 /:menuId 路由之前
+// 【新增】辅助函数：处理图标显示逻辑
+// 网络图标通过 /api/icon-proxy 代理，首次使用时自动下载缓存到服务器
+function processCardLogos(rows) {
+  rows.forEach(card => {
+    if (card.custom_logo_path) {
+      card.display_logo = '/uploads/' + card.custom_logo_path;
+    } else if (card.logo_url) {
+      // 网络图标走代理，自动缓存
+      if (card.logo_url.startsWith('http')) {
+        card.display_logo = '/api/icon-proxy?url=' + encodeURIComponent(card.logo_url);
+      } else {
+        card.display_logo = card.logo_url;
+      }
+    } else {
+      card.display_logo = card.url.replace(/\/+$/, '') + '/favicon.ico';
+    }
+  });
+  return rows;
+}
+
+// 全站搜索接口
 router.get('/search', (req, res) => {
   const { q } = req.query;
   if (!q || !q.trim()) return res.json([]);
@@ -24,14 +44,7 @@ router.get('/search', (req, res) => {
 
   db.all(query, [keyword, keyword, keyword], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
-    rows.forEach(card => {
-      if (!card.custom_logo_path) {
-        card.display_logo = card.logo_url || (card.url.replace(/\/+$/, '') + '/favicon.ico');
-      } else {
-        card.display_logo = '/uploads/' + card.custom_logo_path;
-      }
-    });
-    res.json(rows);
+    res.json(processCardLogos(rows));
   });
 });
 
@@ -50,14 +63,7 @@ router.get('/:menuId', (req, res) => {
   
   db.all(query, params, (err, rows) => {
     if (err) return res.status(500).json({error: err.message});
-    rows.forEach(card => {
-      if (!card.custom_logo_path) {
-        card.display_logo = card.logo_url || (card.url.replace(/\/+$/, '') + '/favicon.ico');
-      } else {
-        card.display_logo = '/uploads/' + card.custom_logo_path;
-      }
-    });
-    res.json(rows);
+    res.json(processCardLogos(rows));
   });
 });
 
@@ -89,81 +95,44 @@ router.delete('/:id', auth, (req, res) => {
   });
 });
 
-// ✅ 批量更新卡片排序接口
+// 批量更新卡片排序
 router.post('/update-order', auth, (req, res) => {
   const { sortedIds } = req.body;
-  
-  if (!Array.isArray(sortedIds)) {
-    return res.status(400).json({ message: '参数错误，需要数组格式' });
-  }
-
+  if (!Array.isArray(sortedIds)) return res.status(400).json({ message: '参数错误' });
   db.serialize(() => {
     db.run('BEGIN TRANSACTION');
     const stmt = db.prepare('UPDATE cards SET "order" = ? WHERE id = ?');
-    
-    sortedIds.forEach((id, index) => {
-      stmt.run(index, id);
-    });
-    
+    sortedIds.forEach((id, index) => stmt.run(index, id));
     stmt.finalize();
     db.run('COMMIT', (err) => {
-      if (err) {
-        return res.status(500).json({ error: '保存排序失败' });
-      }
+      if (err) return res.status(500).json({ error: '保存排序失败' });
       res.json({ message: '排序更新成功' });
     });
   });
 });
 
-// ✅ 批量移动卡片到其他菜单
+// 批量移动卡片
 router.post('/batch-move', auth, (req, res) => {
   const { card_ids, target_menu_id, target_sub_menu_id } = req.body;
-  
-  if (!card_ids || !Array.isArray(card_ids) || card_ids.length === 0) {
-    return res.status(400).json({ error: '请选择要移动的卡片' });
-  }
-
+  if (!card_ids || !Array.isArray(card_ids) || card_ids.length === 0) return res.status(400).json({ error: '请选择要移动的卡片' });
   const placeholders = card_ids.map(() => '?').join(',');
-  
-  const query = `
-    UPDATE cards 
-    SET menu_id = ?, sub_menu_id = ? 
-    WHERE id IN (${placeholders})
-  `;
-  
-  const params = [
-    target_sub_menu_id ? null : target_menu_id,
-    target_sub_menu_id || null,
-    ...card_ids
-  ];
-
+  const query = `UPDATE cards SET menu_id = ?, sub_menu_id = ? WHERE id IN (${placeholders})`;
+  const params = [target_sub_menu_id ? null : target_menu_id, target_sub_menu_id || null, ...card_ids];
   db.run(query, params, function(err) {
     if (err) return res.status(500).json({ error: err.message });
-    res.json({ 
-      success: true, 
-      moved_count: this.changes,
-      message: `成功移动 ${this.changes} 张卡片` 
-    });
+    res.json({ success: true, moved_count: this.changes, message: `成功移动 ${this.changes} 张卡片` });
   });
 });
 
-// ✅ 批量删除卡片
+// 批量删除卡片
 router.post('/batch-delete', auth, (req, res) => {
   const { card_ids } = req.body;
-  
-  if (!card_ids || !Array.isArray(card_ids) || card_ids.length === 0) {
-    return res.status(400).json({ error: '请选择要删除的卡片' });
-  }
-
+  if (!card_ids || !Array.isArray(card_ids) || card_ids.length === 0) return res.status(400).json({ error: '请选择要删除的卡片' });
   const placeholders = card_ids.map(() => '?').join(',');
   const query = `DELETE FROM cards WHERE id IN (${placeholders})`;
-
   db.run(query, card_ids, function(err) {
     if (err) return res.status(500).json({ error: err.message });
-    res.json({ 
-      success: true, 
-      message: `成功删除 ${this.changes} 张卡片` 
-    });
+    res.json({ success: true, message: `成功删除 ${this.changes} 张卡片` });
   });
 });
 
