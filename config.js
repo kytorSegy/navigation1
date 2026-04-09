@@ -11,21 +11,19 @@ module.exports = {
     background: process.env.background || process.env.BACKGROUND || ''
   },
 
-  // 【新增】统一存储配置
+  // 统一存储配置
   storage: {
-    // 所有上传文件统一存储到 /app/database/uploads
     uploadDir: process.env.UPLOAD_DIR || '/app/database/uploads',
-    // 数据库路径
     dbPath: process.env.DB_PATH || '/app/database/nav.db'
   },
 
-  // 【新增】Cloudflare R2 配置（可选，用于多容器同步）
+  // Cloudflare R2 配置
   r2: {
-    accountId: process.env.R2_ACCOUNT_ID || '',
-    accessKeyId: process.env.R2_ACCESS_KEY_ID || '',
+    accountId:       process.env.R2_ACCOUNT_ID       || '',
+    accessKeyId:     process.env.R2_ACCESS_KEY_ID     || '',
     secretAccessKey: process.env.R2_SECRET_ACCESS_KEY || '',
-    bucketName: process.env.R2_BUCKET_NAME || '',
-    publicDomain: process.env.R2_PUBLIC_DOMAIN || ''
+    bucketName:      process.env.R2_BUCKET_NAME       || '',
+    publicDomain:    process.env.R2_PUBLIC_DOMAIN     || ''
   },
 
   server: {
