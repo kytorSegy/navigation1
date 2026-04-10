@@ -71,7 +71,7 @@ app.get('/api/r2/status', authMiddleware, (req, res) => {
   res.json({ enabled: r2.isR2Enabled(), bucket: config.r2.bucketName||null, publicDomain: config.r2.publicDomain||null });
 });
 
-// 网络壁纸代理 + R2 双写
+// 网络壁纸代理 + R2 双写 (仅用于非 R2 的网络链接)
 app.get('/api/background', (req, res) => {
   const bgUrl = req.query.url;
   if (!bgUrl || !bgUrl.startsWith('http')) return res.status(404).send('未配置网络壁纸链接');
@@ -117,16 +117,26 @@ app.get('/api/icon-proxy', async (req, res) => {
   }).on('error', () => res.redirect(iconUrl));
 });
 
-// 配置接口
+// =================================================================
+// 配置接口 - R2 URL 直接返回，非 R2 网络链接走代理
+// =================================================================
 app.get('/api/config', (req, res) => {
   db.all("SELECT key, value FROM settings WHERE key IN ('background', 'title', 'bg_type')", (err, rows) => {
     let bgUrl='', titleStr='', bgType='auto';
     if(rows) rows.forEach(r => { if(r.key==='background')bgUrl=r.value; if(r.key==='title')titleStr=r.value; if(r.key==='bg_type')bgType=r.value; });
     if(!bgUrl) bgUrl=(config.app&&config.app.background)||process.env.BACKGROUND||'';
     if(!titleStr) titleStr=(config.app&&config.app.title)||process.env.SITE_TITLE||'我的导航';
-    const isLocal = bgUrl.startsWith('/uploads/');
-    const isVideo = bgUrl.toLowerCase().match(/\.(mp4|webm|ogg)$/);
-    if(!isLocal && !isVideo && bgUrl && bgUrl.startsWith('http')) bgUrl='/api/background?url='+encodeURIComponent(bgUrl);
+
+    // R2 公网 URL 或本地 /uploads/ 路径: 直接返回
+    // 其他网络链接: 走 /api/background 代理缓存
+    const isR2Url = config.r2.publicDomain && bgUrl.startsWith(config.r2.publicDomain);
+    const isLocalPath = bgUrl.startsWith('/uploads/');
+    const isVideo = bgUrl.toLowerCase().match(/\.(mp4|webm|ogg)(\?|$)/);
+
+    if (!isR2Url && !isLocalPath && !isVideo && bgUrl && bgUrl.startsWith('http')) {
+      bgUrl = '/api/background?url=' + encodeURIComponent(bgUrl);
+    }
+
     res.json({ title:titleStr, background:bgUrl, bg_type:bgType, r2_enabled:r2.isR2Enabled() });
   });
 });
@@ -152,4 +162,6 @@ app.post('/api/config/settings', authMiddleware, (req, res) => {
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is running at http://0.0.0.0:${PORT}`);
   console.log(`[R2] 同步状态: ${r2.isR2Enabled() ? '已启用' : '未启用 (配置 R2 环境变量即可开启)'}`);
+  // 启动壁纸同步轮询 (与 backup.sh 相同频率)
+  r2.startWallpaperSync(db);
 });
