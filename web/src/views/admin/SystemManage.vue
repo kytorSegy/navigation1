@@ -12,7 +12,8 @@
 
       <div class="form-group">
         <label>壁纸链接</label>
-        <input v-model="bgUrl" class="input" placeholder="视频链接(.mp4/.webm) 或 图片链接，留空恢复默认" />
+        <input v-model="bgUrl" class="input" :class="{'r2-url': isR2Url}" placeholder="视频(.mp4/.webm) 或 图片链接，留空恢复默认" readonly />
+        <p v-if="isR2Url" class="r2-url-hint">R2 公网地址，所有容器自动同步</p>
       </div>
 
       <div class="form-group">
@@ -26,22 +27,22 @@
 
       <button class="btn save-btn" @click="handleSave" :disabled="loading">{{ loading ? '保存中...' : '保存设置' }}</button>
 
-      <!-- 高级: 本地上传 -->
       <details class="advanced-section">
-        <summary>本地上传壁纸</summary>
+        <summary>上传本地壁纸</summary>
         <div class="advanced-body">
-          <p class="hint">上传图片或视频到服务器{{ r2Status ? '，自动同步到 R2' : '' }}。</p>
+          <p class="hint">上传图片或视频到服务器{{ r2Status ? '，自动同步到 R2 并更新壁纸链接' : '' }}。</p>
           <input type="file" @change="handleFileUpload" accept="image/*,video/*" />
           <div v-if="uploading" class="status-text loading">正在上传...</div>
-          <div v-if="uploadResult" class="status-text success">上传成功{{ uploadResult.r2_synced ? ', R2 已同步' : '' }}</div>
+          <div v-if="uploadResult" class="status-text success">
+            上传成功{{ uploadResult.r2_synced ? ', R2 已同步' : '' }}，壁纸链接已更新
+          </div>
         </div>
       </details>
 
-      <!-- 高级: 网络缓存 -->
       <details class="advanced-section">
         <summary>缓存网络资源到服务器</summary>
         <div class="advanced-body">
-          <p class="hint">下载网络图片/视频到本地{{ r2Status ? '+R2' : '' }}，避免每次访问都走外网。</p>
+          <p class="hint">下载网络图片/视频到{{ r2Status ? ' R2' : '本地' }}，避免每次访问都走外网。</p>
           <input v-model="cacheUrl" class="input" placeholder="输入网络链接" />
           <button class="cache-btn" @click="handleCache" :disabled="!cacheUrl.trim()||caching">{{ caching ? '缓存中...' : '下载并缓存' }}</button>
           <div v-if="cacheResult" class="status-text success">缓存成功{{ cacheResult.r2_synced ? ', R2 已同步' : '' }}</div>
@@ -54,14 +55,16 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { getConfig, updateConfig } from '../../api';
 
 const siteTitle = ref(''); const bgUrl = ref(''); const bgType = ref('auto');
 const loading = ref(false); const message = ref(''); const messageType = ref('success');
 const uploading = ref(false); const uploadResult = ref(null);
 const cacheUrl = ref(''); const caching = ref(false); const cacheResult = ref(null);
-const r2Status = ref(null);
+const r2Status = ref(null); const r2Domain = ref('');
+
+const isR2Url = computed(() => r2Domain.value && bgUrl.value && bgUrl.value.startsWith(r2Domain.value));
 
 onMounted(async () => {
   try {
@@ -70,8 +73,17 @@ onMounted(async () => {
     bgType.value = res.data.bg_type || 'auto';
     r2Status.value = res.data.r2_enabled || false;
     let url = res.data.background || '';
+    // 还原代理 URL
     if (url.includes('/api/background?url=')) url = decodeURIComponent(url.split('url=')[1]);
     bgUrl.value = url;
+    // 获取 R2 域名用于判断
+    if (r2Status.value) {
+      try {
+        const r2Res = await fetch('/api/r2/status', { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') } });
+        const r2Data = await r2Res.json();
+        r2Domain.value = r2Data.publicDomain || '';
+      } catch(e) {}
+    }
   } catch (err) { console.error('获取配置失败:', err); }
 });
 
@@ -82,8 +94,14 @@ async function handleFileUpload(event) {
   try {
     const resp = await fetch('/api/upload?type=wallpaper', { method:'POST', body:formData, headers:{'Authorization':'Bearer '+localStorage.getItem('token')} });
     const result = await resp.json();
-    if (result.url) { bgUrl.value = result.url; bgType.value = result.type||(file.type.includes('video')?'video':'image'); uploadResult.value = result; message.value = '上传成功，请保存设置'; messageType.value = 'success'; }
-    else throw new Error(result.error||'上传失败');
+    if (result.url) {
+      // url 已经是 R2 公网地址 (或本地路径)
+      bgUrl.value = result.url;
+      bgType.value = result.type || (file.type.includes('video')?'video':'image');
+      uploadResult.value = result;
+      message.value = '上传成功，壁纸已更新！请点击保存设置确认标题和类型。';
+      messageType.value = 'success';
+    } else throw new Error(result.error||'上传失败');
   } catch(e) { message.value = '上传失败: '+e.message; messageType.value = 'error'; }
   finally { uploading.value = false; }
 }
@@ -94,8 +112,12 @@ async function handleCache() {
   try {
     const resp = await fetch('/api/upload/fetch-and-cache', { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+localStorage.getItem('token')}, body:JSON.stringify({url:cacheUrl.value}) });
     const result = await resp.json();
-    if (result.success) { bgUrl.value = result.url; bgType.value = result.recommended_type||result.type||'auto'; cacheResult.value = result; message.value = '缓存成功，请保存设置'; messageType.value = 'success'; }
-    else throw new Error(result.error);
+    if (result.success) {
+      bgUrl.value = result.url; // R2 公网 URL 或本地路径
+      bgType.value = result.recommended_type||result.type||'auto';
+      cacheResult.value = result;
+      message.value = '缓存成功，请保存设置'; messageType.value = 'success';
+    } else throw new Error(result.error);
   } catch(e) { message.value = '缓存失败: '+e.message; messageType.value = 'error'; }
   finally { caching.value = false; }
 }
@@ -122,6 +144,8 @@ async function handleSave() {
 .form-group label { display: block; margin-bottom: 6px; font-weight: 600; color: #222; font-size: 0.95rem; }
 .input { width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid #d0d7e2; font-size: 0.95rem; box-sizing: border-box; }
 .input:focus { outline: 2px solid #2566d8; border-color: #2566d8; }
+.input.r2-url { background: #f0fdf4; border-color: #86efac; color: #166534; }
+.r2-url-hint { font-size: 0.78rem; color: #059669; margin-top: 4px; }
 .type-selector { display: flex; gap: 8px; }
 .type-btn { flex: 1; padding: 8px; border-radius: 8px; border: 1px solid #d0d7e2; background: #fff; color: #555; font-size: 13px; cursor: pointer; text-align: center; transition: 0.2s; }
 .type-btn.active { background: #2566d8; color: #fff; border-color: #2566d8; }
