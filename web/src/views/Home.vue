@@ -49,20 +49,19 @@
             <button @click="visitorMode='local'" :class="{active:visitorMode==='local'}">本地图片/视频</button>
             <button @click="visitorMode='network'" :class="{active:visitorMode==='network'}">网络链接</button>
           </div>
-
           <div v-if="visitorMode==='local'" class="tab-content">
-            <p class="theme-desc">选择或拖拽图片/视频文件，仅保存在你的浏览器中。</p>
+            <p class="theme-desc">选择或拖拽图片/视频文件，支持 MP4/MOV/WebM/JPG/PNG/WebP/GIF 等格式。</p>
             <div class="drop-zone" :class="{dragover:isDragOver}" @dragover.prevent="isDragOver=true" @dragleave="isDragOver=false" @drop.prevent="handleDrop">
-              <input type="file" @change="handleVisitorLocalFile" accept="image/*,video/*" class="file-input" ref="fileInputRef" />
+              <input type="file" @change="handleVisitorLocalFile" accept="image/*,video/*,video/quicktime,.mov,.m4v" class="file-input" ref="fileInputRef" />
               <div class="drop-hint" @click="$refs.fileInputRef.click()">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 16V4m0 0l-4 4m4-4l4 4M4 20h16"/></svg>
                 <span>{{ localFileName || '点击选择或拖拽文件到此处' }}</span>
               </div>
             </div>
+            <p v-if="formatError" class="format-error">{{ formatError }}</p>
           </div>
-
           <div v-if="visitorMode==='network'" class="tab-content">
-            <p class="theme-desc">粘贴视频(.mp4)或图片链接。</p>
+            <p class="theme-desc">粘贴视频(.mp4/.mov/.webm)或图片链接。</p>
             <input v-model="visitorBgInput" type="text" placeholder="请输入链接" class="theme-input" />
             <div class="type-selector">
               <button :class="['type-btn',{active:visitorBgType==='auto'}]" @click="visitorBgType='auto'">自动</button>
@@ -70,7 +69,6 @@
               <button :class="['type-btn',{active:visitorBgType==='image'}]" @click="visitorBgType='image'">图片</button>
             </div>
           </div>
-
           <div class="theme-actions">
             <button class="btn clear-theme-btn" @click="clearVisitorTheme">恢复默认</button>
             <button v-if="visitorMode==='network'" class="btn save-theme-btn" @click="saveVisitorTheme">保存并应用</button>
@@ -97,13 +95,15 @@ const visitorBgInput = ref(''); const visitorBgType = ref('auto');
 const isBgLoaded = ref(false); const bgVideoRef = ref(null);
 const videoFailed = ref(false); const needsInteraction = ref(false);
 const isDragOver = ref(false); const localFileName = ref('');
-const fileInputRef = ref(null);
+const fileInputRef = ref(null); const formatError = ref('');
 const transparentPixel = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
 
+// 支持的视频格式: mp4, webm, ogg, mov, m4v, avi, mkv
 function isVideoType(url, bgType) {
   if (bgType==='video') return true; if (bgType==='image') return false; if (!url) return false;
   if (url.startsWith('data:video/')) return true;
-  const l = url.toLowerCase(); return l.includes('.mp4')||l.includes('.webm')||l.includes('.ogg');
+  const l = url.toLowerCase();
+  return /\.(mp4|webm|ogg|mov|m4v|avi|mkv)(\?|$)/.test(l);
 }
 const isVideoBg = computed(() => isVideoType(customBackground.value, customBgType.value));
 const shouldShowVideo = computed(() => isVideoBg.value && !videoFailed.value);
@@ -131,6 +131,16 @@ watch(customBackground,(newUrl)=>{
   if(!isVideoBg.value){const img=new Image();img.src=newUrl;img.onload=()=>{isBgLoaded.value=true;};img.onerror=()=>{isBgLoaded.value=true;};}
 },{immediate:true});
 
+// 格式校验
+const ALLOWED_TYPES = /^(image\/(jpeg|png|gif|webp|bmp|svg\+xml)|video\/(mp4|webm|ogg|quicktime|x-m4v|x-msvideo|x-matroska))$/;
+const ALLOWED_EXTS = /\.(jpg|jpeg|png|gif|webp|bmp|svg|mp4|webm|ogg|mov|m4v|avi|mkv)$/i;
+
+function validateFile(file) {
+  if (ALLOWED_TYPES.test(file.type)) return true;
+  if (ALLOWED_EXTS.test(file.name)) return true;
+  return false;
+}
+
 // ========== IndexedDB ==========
 function openDB() {
   return new Promise((resolve,reject)=>{
@@ -142,7 +152,12 @@ function openDB() {
 
 function processLocalFile(file) {
   if(!file) return;
-  const type = file.type.includes('video')?'video':'image';
+  formatError.value = '';
+  if (!validateFile(file)) {
+    formatError.value = `不支持的格式: ${file.name.split('.').pop()}。支持 JPG/PNG/GIF/WebP/MP4/MOV/WebM 等。`;
+    return;
+  }
+  const type = (file.type.includes('video') || /\.(mp4|webm|ogg|mov|m4v|avi|mkv)$/i.test(file.name)) ? 'video' : 'image';
   const reader = new FileReader();
   reader.readAsDataURL(file);
   reader.onload = async (e)=>{
@@ -166,7 +181,11 @@ function processLocalFile(file) {
 }
 
 function handleVisitorLocalFile(event) { processLocalFile(event.target.files[0]); }
-function handleDrop(event) { isDragOver.value=false; const file=event.dataTransfer.files[0]; if(file&&(file.type.startsWith('image/')||file.type.startsWith('video/'))) processLocalFile(file); }
+function handleDrop(event) {
+  isDragOver.value=false;
+  const file=event.dataTransfer.files[0];
+  if (file) processLocalFile(file);
+}
 
 async function loadLocalWallpaper() {
   if(localStorage.getItem('visitor_use_local_db')==='true'){
@@ -193,12 +212,11 @@ function saveVisitorTheme() {
 function clearVisitorTheme() {
   localStorage.removeItem('visitor_bg');localStorage.removeItem('visitor_bg_type');localStorage.removeItem('visitor_use_local_db');localStorage.removeItem('visitor_local_name');
   openDB().then(db=>{db.transaction('wallpapers','readwrite').objectStore('wallpapers').clear();}).catch(()=>{});
-  visitorBgInput.value='';visitorBgType.value='auto';localFileName.value='';
+  visitorBgInput.value='';visitorBgType.value='auto';localFileName.value='';formatError.value='';
   customBackground.value=globalBackground.value;customBgType.value=globalBgType.value;
   showThemeSettings.value=false;
 }
 
-// ========== 搜索 ==========
 const searchEngines = [
   {name:'google',label:'Google',placeholder:'Google 搜索...',url:q=>`https://www.google.com/search?q=${encodeURIComponent(q)}`},
   {name:'baidu',label:'百度',placeholder:'百度搜索...',url:q=>`https://www.baidu.com/s?wd=${encodeURIComponent(q)}`},
@@ -221,8 +239,7 @@ watch(searchQuery,(v)=>{
 
 onMounted(async()=>{
   try{const c=await getConfig();if(c.data.background)globalBackground.value=c.data.background;if(c.data.bg_type)globalBgType.value=c.data.bg_type;if(c.data.title)document.title=c.data.title;}catch(e){}
-  await loadLocalWallpaper();
-  setupTouchPlay();
+  await loadLocalWallpaper(); setupTouchPlay();
   const res=await getMenus();menus.value=res.data;
   if(menus.value.length){activeMenu.value=menus.value[0];loadCards();}
   const adRes=await getAds();leftAds.value=adRes.data.filter(a=>a.position==='left');rightAds.value=adRes.data.filter(a=>a.position==='right');
@@ -241,25 +258,24 @@ function handleLogoError(e){e.target.style.display='none';if(e.target.nextElemen
 .bg-image,.bg-video{opacity:0;transition:opacity 1.2s ease-in-out}
 .fade-in{opacity:1!important}
 .bg-image{position:fixed;inset:0;background-size:cover;background-position:center;background-repeat:no-repeat;z-index:0}
-.bg-video{position:fixed;top:0;left:0;width:100vw;height:100vh;height:100dvh;object-fit:cover;z-index:0;-webkit-transform:translateZ(0);transform:translateZ(0);-webkit-backface-visibility:hidden;backface-visibility:hidden}
+.bg-video{position:fixed;top:0;left:0;width:100vw;height:100vh;height:100dvh;object-fit:cover;z-index:0;-webkit-transform:translateZ(0);transform:translateZ(0)}
 .home-container::before{content:'';position:fixed;inset:0;background:rgba(0,0,0,0.3);z-index:1}
 .content-overlay{position:relative;z-index:2;flex:1;display:flex;flex-direction:column;padding-top:50px}
-.tap-to-play-hint{position:fixed;bottom:120px;left:50%;transform:translateX(-50%);z-index:3;background:rgba(0,0,0,0.5);backdrop-filter:blur(8px);color:#fff;font-size:12px;padding:8px 16px;border-radius:20px;animation:pulse 2s ease-in-out infinite;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.tap-to-play-hint{position:fixed;bottom:120px;left:50%;transform:translateX(-50%);z-index:3;background:rgba(0,0,0,0.5);backdrop-filter:blur(8px);color:#fff;font-size:12px;padding:8px 16px;border-radius:20px;animation:pulse 2s ease-in-out infinite;cursor:pointer}
 @keyframes pulse{0%,100%{opacity:.8}50%{opacity:1}}
-.theme-toggle-btn{position:fixed;top:16px;right:16px;z-index:101;background:rgba(255,255,255,0.15);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.3);border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center;color:#fff;cursor:pointer;transition:all .3s;box-shadow:0 4px 12px rgba(0,0,0,0.1);-webkit-tap-highlight-color:transparent}
+.theme-toggle-btn{position:fixed;top:16px;right:16px;z-index:101;background:rgba(255,255,255,0.15);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.3);border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center;color:#fff;cursor:pointer;transition:all .3s;box-shadow:0 4px 12px rgba(0,0,0,0.1)}
 .theme-toggle-btn:active{background:rgba(255,255,255,0.25);transform:scale(0.95)}
 @media(pointer:fine){.theme-toggle-btn:hover{background:rgba(255,255,255,0.25);transform:rotate(15deg) scale(1.1)}}
 .menu-bar-fixed{position:fixed;top:.6rem;left:0;width:100vw;z-index:100}
 @media(max-width:767px){.menu-bar-fixed{position:static;width:100%}.content-overlay{padding-top:0}}
 .search-engine-select{display:flex;align-items:center;padding-bottom:.3rem;gap:3px;overflow-x:auto}
-.engine-btn{border:none;background:none;color:#fff;font-size:.8rem;padding:4px 10px;border-radius:4px;cursor:pointer;white-space:nowrap;min-height:32px;-webkit-tap-highlight-color:transparent}
+.engine-btn{border:none;background:none;color:#fff;font-size:.8rem;padding:4px 10px;border-radius:4px;cursor:pointer;white-space:nowrap;min-height:32px}
 .engine-btn.active,.engine-btn:hover{color:#399dff;background:#ffffff1a}
 .search-container{display:flex;align-items:center;background:#b3b7b83b;border-radius:20px;padding:0.2rem;box-shadow:0 4px 20px rgba(0,0,0,0.1);backdrop-filter:blur(10px);max-width:480px;width:92%}
 .search-input{flex:1;border:none;background:transparent;padding:.1rem .5rem;font-size:1rem;color:#fff;outline:none;min-width:0}
 .search-input::placeholder{color:#999}
-.clear-btn{background:none;border:none;cursor:pointer;display:flex;align-items:center;padding:4px;min-width:36px;min-height:36px;justify-content:center;-webkit-tap-highlight-color:transparent}
-.search-btn{background:transparent;color:#fff;border:none;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;-webkit-tap-highlight-color:transparent}
-.search-btn:active{background:#3367d6}
+.clear-btn{background:none;border:none;cursor:pointer;display:flex;align-items:center;padding:4px;min-width:36px;min-height:36px;justify-content:center}
+.search-btn{background:transparent;color:#fff;border:none;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer}
 .search-section{display:flex;flex-direction:column;align-items:center;padding:1.5rem 0 2rem;z-index:2}
 @media(min-width:768px){.search-section{padding:2.8rem 0}}
 .search-box-wrapper{display:flex;flex-direction:column;align-items:center;width:100%;max-width:480px;padding:0 12px;box-sizing:border-box}
@@ -270,7 +286,7 @@ function handleLogoError(e){e.target.style.display='none';if(e.target.nextElemen
 .footer{margin-top:auto;text-align:center;padding:1rem 0 1.5rem;padding-bottom:max(1.5rem,env(safe-area-inset-bottom,0px));z-index:2}
 .footer-content{display:flex;flex-direction:column;align-items:center;gap:8px}
 @media(min-width:768px){.footer-content{flex-direction:row;justify-content:center;gap:50px}}
-.friend-link-btn{display:flex;align-items:center;gap:8px;background:none;border:none;color:rgba(255,255,255,0.8);cursor:pointer;font-size:12px;min-height:36px;-webkit-tap-highlight-color:transparent}
+.friend-link-btn{display:flex;align-items:center;gap:8px;background:none;border:none;color:rgba(255,255,255,0.8);cursor:pointer;font-size:12px;min-height:36px}
 @media(min-width:768px){.friend-link-btn{font-size:14px}}
 .copyright{color:rgba(255,255,255,0.6);font-size:10px;margin:0}
 @media(min-width:768px){.copyright{font-size:14px;color:rgba(255,255,255,0.8)}}
@@ -282,13 +298,13 @@ function handleLogoError(e){e.target.style.display='none';if(e.target.nextElemen
 .modal-header{display:flex;align-items:center;justify-content:space-between;padding:15px 20px;border-bottom:1px solid #e5e7eb;background:#fff;flex-shrink:0}
 .modal-header h3{margin:0;font-size:16px;font-weight:600;color:#111827}
 @media(min-width:768px){.modal-header h3{font-size:20px}}
-.close-btn{background:none;border:none;cursor:pointer;padding:8px;border-radius:8px;color:#6b7280;min-width:40px;min-height:40px;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent}
+.close-btn{background:none;border:none;cursor:pointer;padding:8px;border-radius:8px;color:#6b7280;min-width:40px;min-height:40px;display:flex;align-items:center;justify-content:center}
 .close-btn:active{background:#fee2e2;color:#ef4444}
 .modal-body{flex:1;padding:16px;overflow-y:auto;overscroll-behavior:contain;padding-bottom:max(16px,env(safe-area-inset-bottom,0px))}
 @media(min-width:768px){.modal-body{padding:24px}}
 .friend-links-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 @media(min-width:768px){.friend-links-grid{grid-template-columns:repeat(6,1fr);gap:12px}}
-.friend-link-card{display:flex;flex-direction:column;align-items:center;padding:10px;background:#fff;border-radius:12px;text-decoration:none;color:inherit;border:1px solid #e2e8f0;min-height:72px;-webkit-tap-highlight-color:transparent}
+.friend-link-card{display:flex;flex-direction:column;align-items:center;padding:10px;background:#fff;border-radius:12px;text-decoration:none;color:inherit;border:1px solid #e2e8f0;min-height:72px}
 .friend-link-card:active{transform:scale(0.97)}
 .friend-link-logo{width:40px;height:40px;border-radius:8px;overflow:hidden;margin-bottom:6px;display:flex;align-items:center;justify-content:center;background:#f8fafc}
 @media(min-width:768px){.friend-link-logo{width:48px;height:48px;margin-bottom:8px}}
@@ -299,22 +315,23 @@ function handleLogoError(e){e.target.style.display='none';if(e.target.nextElemen
 .theme-modal{width:420px!important;height:auto!important;min-height:220px}
 @media(max-width:767px){.theme-modal{width:100%!important}}
 .upload-tabs{display:flex;gap:8px;margin-bottom:14px}
-.upload-tabs button{flex:1;padding:10px;border-radius:8px;border:1px solid #d0d7e2;background:#f8f9fa;cursor:pointer;font-weight:600;font-size:13px;min-height:42px;-webkit-tap-highlight-color:transparent;transition:.2s}
+.upload-tabs button{flex:1;padding:10px;border-radius:8px;border:1px solid #d0d7e2;background:#f8f9fa;cursor:pointer;font-weight:600;font-size:13px;min-height:42px;transition:.2s}
 .upload-tabs button.active{background:#2566d8;color:#fff;border-color:#2566d8}
 .tab-content{margin-bottom:14px}
 .theme-desc{font-size:12px;color:#555;margin-bottom:12px;line-height:1.6;background:#f0f4f8;padding:10px;border-radius:6px;border-left:3px solid #2566d8}
 .theme-input{width:100%;padding:12px 16px;border-radius:8px;border:1px solid #cbd5e1;font-size:14px;background:#fff;margin-bottom:12px;box-sizing:border-box}
 .theme-input:focus{outline:none;border-color:#2566d8;box-shadow:0 0 0 2px rgba(37,102,216,0.1)}
-.drop-zone{border:2px dashed #cbd5e1;border-radius:10px;padding:16px;text-align:center;transition:all .2s;position:relative;cursor:pointer}
-.drop-zone.dragover{border-color:#2566d8;background:rgba(37,102,216,0.05)}
+.drop-zone{border:2px dashed #cbd5e1;border-radius:10px;padding:20px 16px;text-align:center;transition:all .2s;position:relative;cursor:pointer}
+.drop-zone.dragover{border-color:#2566d8;background:rgba(37,102,216,0.06)}
 .drop-zone .file-input{position:absolute;inset:0;opacity:0;cursor:pointer;z-index:1}
 .drop-hint{display:flex;flex-direction:column;align-items:center;gap:6px;color:#94a3b8;font-size:13px;pointer-events:none}
 .drop-hint svg{color:#94a3b8}
+.format-error{font-size:12px;color:#dc2626;margin-top:6px;padding:6px 10px;background:#fef2f2;border-radius:6px}
 .type-selector{display:flex;gap:8px;margin-bottom:10px}
-.type-btn{flex:1;padding:10px 8px;border-radius:8px;border:1px solid #cbd5e1;background:#fff;color:#555;font-size:12px;cursor:pointer;text-align:center;min-height:40px;-webkit-tap-highlight-color:transparent}
+.type-btn{flex:1;padding:10px 8px;border-radius:8px;border:1px solid #cbd5e1;background:#fff;color:#555;font-size:12px;cursor:pointer;text-align:center;min-height:40px}
 .type-btn.active{background:#2566d8;color:#fff;border-color:#2566d8}
 .theme-actions{display:flex;gap:10px}
-.btn{border:none;border-radius:8px;padding:12px;cursor:pointer;font-weight:500;min-height:48px;-webkit-tap-highlight-color:transparent}
+.btn{border:none;border-radius:8px;padding:12px;cursor:pointer;font-weight:500;min-height:48px}
 .save-theme-btn{flex:1;background:#2566d8;color:#fff}
 .save-theme-btn:active{background:#1a4ba3}
 .clear-theme-btn{flex:1;background:#fff;color:#64748b;border:1px solid #cbd5e1}
