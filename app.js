@@ -25,7 +25,8 @@ const PORT = process.env.PORT || 3000;
 const UPLOAD_DIR = config.storage.uploadDir;
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(compression());
 
 // /uploads 静态服务 + R2 回源
@@ -66,12 +67,11 @@ app.use('/api/friends', friendRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/parse-link', parseRoutes);
 
-// R2 状态查询
 app.get('/api/r2/status', authMiddleware, (req, res) => {
   res.json({ enabled: r2.isR2Enabled(), bucket: config.r2.bucketName||null, publicDomain: config.r2.publicDomain||null });
 });
 
-// 网络壁纸代理 + R2 双写 (仅用于非 R2 的网络链接)
+// 网络壁纸代理 + R2 双写
 app.get('/api/background', (req, res) => {
   const bgUrl = req.query.url;
   if (!bgUrl || !bgUrl.startsWith('http')) return res.status(404).send('未配置网络壁纸链接');
@@ -117,9 +117,7 @@ app.get('/api/icon-proxy', async (req, res) => {
   }).on('error', () => res.redirect(iconUrl));
 });
 
-// =================================================================
-// 配置接口 - R2 URL 直接返回，非 R2 网络链接走代理
-// =================================================================
+// 配置接口
 app.get('/api/config', (req, res) => {
   db.all("SELECT key, value FROM settings WHERE key IN ('background', 'title', 'bg_type')", (err, rows) => {
     let bgUrl='', titleStr='', bgType='auto';
@@ -127,11 +125,9 @@ app.get('/api/config', (req, res) => {
     if(!bgUrl) bgUrl=(config.app&&config.app.background)||process.env.BACKGROUND||'';
     if(!titleStr) titleStr=(config.app&&config.app.title)||process.env.SITE_TITLE||'我的导航';
 
-    // R2 公网 URL 或本地 /uploads/ 路径: 直接返回
-    // 其他网络链接: 走 /api/background 代理缓存
     const isR2Url = config.r2.publicDomain && bgUrl.startsWith(config.r2.publicDomain);
     const isLocalPath = bgUrl.startsWith('/uploads/');
-    const isVideo = bgUrl.toLowerCase().match(/\.(mp4|webm|ogg)(\?|$)/);
+    const isVideo = bgUrl.toLowerCase().match(/\.(mp4|webm|ogg|mov|m4v|avi|mkv)(\?|$)/);
 
     if (!isR2Url && !isLocalPath && !isVideo && bgUrl && bgUrl.startsWith('http')) {
       bgUrl = '/api/background?url=' + encodeURIComponent(bgUrl);
@@ -159,9 +155,13 @@ app.post('/api/config/settings', authMiddleware, (req, res) => {
   function done(err) { if(err)hasError=true; completed++; if(completed===updates.length){if(hasError)return res.status(500).json({error:'部分设置保存失败'});res.json({success:true});} }
 });
 
-app.listen(PORT, '0.0.0.0', () => {
+// 启动服务器，设置超时适应大文件上传
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is running at http://0.0.0.0:${PORT}`);
   console.log(`[R2] 同步状态: ${r2.isR2Enabled() ? '已启用' : '未启用 (配置 R2 环境变量即可开启)'}`);
-  // 启动壁纸同步轮询 (与 backup.sh 相同频率)
   r2.startWallpaperSync(db);
 });
+// 10 分钟超时，避免大文件上传时 Bad Gateway
+server.timeout = 600000;
+server.keepAliveTimeout = 620000;
+server.headersTimeout = 630000;
