@@ -29,13 +29,26 @@ app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(compression());
 
+// =================================================================
 // /uploads 静态服务 + R2 回源
+// 注意: Express 已自动对 req.path 做了 decodeURIComponent
+// 所以这里的 req.path 已经是解码后的中文
+// =================================================================
 app.use('/uploads', async (req, res, next) => {
-  const localPath = path.join(UPLOAD_DIR, req.path);
+  // req.path 已解码，如 "/【哲风壁纸】xxx.mp4"
+  const decodedPath = req.path;
+  const localPath = path.join(UPLOAD_DIR, decodedPath);
   if (fs.existsSync(localPath)) return next();
+
+  // 本地无文件，尝试从 R2 拉取
   if (r2.isR2Enabled()) {
-    const ok = await r2.downloadFromR2('uploads' + req.path, localPath);
-    if (ok) return res.sendFile(localPath);
+    // R2 Key 是原始中文路径
+    const r2Key = 'uploads' + decodedPath;
+    // 本地保存用 hash 文件名，避免中文文件名问题
+    const safeName = r2.r2KeyToLocalName(r2Key);
+    const safePath = path.join(UPLOAD_DIR, safeName);
+    const ok = await r2.downloadFromR2(r2Key, safePath);
+    if (ok) return res.sendFile(safePath);
   }
   next();
 }, express.static(UPLOAD_DIR));
@@ -71,7 +84,34 @@ app.get('/api/r2/status', authMiddleware, (req, res) => {
   res.json({ enabled: r2.isR2Enabled(), bucket: config.r2.bucketName||null, publicDomain: config.r2.publicDomain||null });
 });
 
-// 网络壁纸代理 + R2 双写
+// =================================================================
+// R2 壁纸本地代理: 前端访问 /api/r2-wallpaper?key=uploads/xxx.mp4
+// 自动从 R2 拉取并缓存到本地，然后返回本地文件
+// 解决中文文件名编码问题: 前端只需访问这个接口，无需处理编码
+// =================================================================
+app.get('/api/r2-wallpaper', async (req, res) => {
+  const r2Key = req.query.key;
+  if (!r2Key) return res.status(400).send('缺少 key 参数');
+
+  // 解码 key (可能从 URL 查询参数中来，已被 Express 解码)
+  const safeName = r2.r2KeyToLocalName(r2Key);
+  const localPath = path.join(UPLOAD_DIR, safeName);
+
+  // 本地已缓存
+  if (fs.existsSync(localPath)) {
+    return res.sendFile(localPath);
+  }
+
+  // 从 R2 拉取
+  if (r2.isR2Enabled()) {
+    const ok = await r2.downloadFromR2(r2Key, localPath);
+    if (ok) return res.sendFile(localPath);
+  }
+
+  res.status(404).send('壁纸文件未找到');
+});
+
+// 网络壁纸代理 + R2 双写 (仅用于非 R2 的网络链接)
 app.get('/api/background', (req, res) => {
   const bgUrl = req.query.url;
   if (!bgUrl || !bgUrl.startsWith('http')) return res.status(404).send('未配置网络壁纸链接');
@@ -117,7 +157,12 @@ app.get('/api/icon-proxy', async (req, res) => {
   }).on('error', () => res.redirect(iconUrl));
 });
 
+// =================================================================
 // 配置接口
+// R2 壁纸: 转为 /api/r2-wallpaper?key=xxx 代理，前端无需处理中文编码
+// 普通网络链接: 转为 /api/background?url=xxx 代理
+// 本地路径: 直接返回
+// =================================================================
 app.get('/api/config', (req, res) => {
   db.all("SELECT key, value FROM settings WHERE key IN ('background', 'title', 'bg_type')", (err, rows) => {
     let bgUrl='', titleStr='', bgType='auto';
@@ -125,15 +170,32 @@ app.get('/api/config', (req, res) => {
     if(!bgUrl) bgUrl=(config.app&&config.app.background)||process.env.BACKGROUND||'';
     if(!titleStr) titleStr=(config.app&&config.app.title)||process.env.SITE_TITLE||'我的导航';
 
-    const isR2Url = config.r2.publicDomain && bgUrl.startsWith(config.r2.publicDomain);
+    // 判断 URL 类型
+    let domain = config.r2.publicDomain || '';
+    if (domain.endsWith('/')) domain = domain.slice(0,-1);
+    const isR2Url = domain && bgUrl.startsWith(domain);
     const isLocalPath = bgUrl.startsWith('/uploads/');
     const isVideo = bgUrl.toLowerCase().match(/\.(mp4|webm|ogg|mov|m4v|avi|mkv)(\?|$)/);
 
-    if (!isR2Url && !isLocalPath && !isVideo && bgUrl && bgUrl.startsWith('http')) {
-      bgUrl = '/api/background?url=' + encodeURIComponent(bgUrl);
+    let serveBgUrl = bgUrl;
+    if (isR2Url) {
+      // R2 壁纸: 提取解码后的 Key，转为本地代理接口
+      const r2Key = r2.extractR2Key(bgUrl);
+      if (r2Key) {
+        serveBgUrl = '/api/r2-wallpaper?key=' + encodeURIComponent(r2Key);
+      }
+    } else if (!isLocalPath && !isVideo && bgUrl && bgUrl.startsWith('http')) {
+      // 普通网络链接: 走代理缓存
+      serveBgUrl = '/api/background?url=' + encodeURIComponent(bgUrl);
     }
 
-    res.json({ title:titleStr, background:bgUrl, bg_type:bgType, r2_enabled:r2.isR2Enabled() });
+    res.json({
+      title: titleStr,
+      background: serveBgUrl,
+      background_raw: bgUrl, // 后台用，显示原始 R2 URL
+      bg_type: bgType,
+      r2_enabled: r2.isR2Enabled()
+    });
   });
 });
 
@@ -155,13 +217,11 @@ app.post('/api/config/settings', authMiddleware, (req, res) => {
   function done(err) { if(err)hasError=true; completed++; if(completed===updates.length){if(hasError)return res.status(500).json({error:'部分设置保存失败'});res.json({success:true});} }
 });
 
-// 启动服务器，设置超时适应大文件上传
 const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is running at http://0.0.0.0:${PORT}`);
   console.log(`[R2] 同步状态: ${r2.isR2Enabled() ? '已启用' : '未启用 (配置 R2 环境变量即可开启)'}`);
   r2.startWallpaperSync(db);
 });
-// 10 分钟超时，避免大文件上传时 Bad Gateway
 server.timeout = 600000;
 server.keepAliveTimeout = 620000;
 server.headersTimeout = 630000;
