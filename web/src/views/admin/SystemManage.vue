@@ -130,9 +130,8 @@ onMounted(async () => {
     siteTitle.value = res.data.title || '';
     bgType.value = res.data.bg_type || 'auto';
     r2Status.value = res.data.r2_enabled || false;
-    let url = res.data.background_raw || res.data.background || '';
+    let url = res.data.background || '';
     if (url.includes('/api/background?url=')) url = decodeURIComponent(url.split('url=')[1]);
-    if (url.includes('/api/r2-wallpaper?key=')) { try { url = decodeURIComponent(url.split('key=')[1]); } catch(e) {} }
     bgUrl.value = url;
     if (r2Status.value) {
       try {
