@@ -388,8 +388,22 @@ async function deleteCard(id) {
 }
 
 async function onDragEnd() {
-  const sortedIds = cards.value.map(card => card.id);
-  try { await updateCardOrder({ sortedIds }); } catch (error) { console.error('排序保存失败', error); alert('排序保存失败，请刷新页面重试'); }
+  // 优化同步逻辑：使用当前显示列表，确保跨平台（菜单/子菜单）顺序正确
+  const sortedIds = displayCards.value.map(card => card.id);
+  try {
+    await updateCardOrder({ sortedIds });
+    // 拖拽后立即重新加载数据，确保其他容器/视图同步更新，避免状态不同步
+    await loadCards();
+    // 如果是搜索模式，也刷新搜索结果
+    if (showSearchResults.value) {
+      await handleSearch();
+    }
+  } catch (error) {
+    console.error('排序保存失败', error);
+    alert('排序保存失败，请刷新页面重试');
+    // 失败时回滚：重新加载原始数据
+    await loadCards();
+  }
 }
 
 async function handleBatchMove() {
