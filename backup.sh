@@ -1,6 +1,6 @@
 #!/bin/bash
 # -----------------------------------------------------------------------------
-# backup.sh - SQL 文本同步脚本 (纯中文汇报版 + 进度提示)
+# backup.sh - SQL 文本同步脚本 (增强版：壁纸链接 + 卡片排序 完整同步)
 # -----------------------------------------------------------------------------
 
 # 运行前检测所需依赖 (静默补全)
@@ -44,6 +44,12 @@ fi
 GIT_URL="https://${GITHUB_USER}:${GITHUB_TOKEN}@github.com/${GITHUB_USER}/${GITHUB_REPO}.git"
 CHECK_INTERVAL="${BACKUP_INTERVAL:-30}"
 
+# ================= 新增：数据指纹缓存 =================
+# 用于检测数据内容变化，而非仅依赖文件时间戳
+LAST_DATA_HASH=""
+LAST_BG_URL=""
+LAST_CARDS_HASH=""
+
 # 辅助函数：权限修复
 fix_permissions() {
     if [ -d "$SOURCE_DIR" ]; then chmod 777 "$SOURCE_DIR"; fi
@@ -68,9 +74,94 @@ restore_db_from_sql() {
         rm "$TEMP_DB"
         fix_permissions
         echo "[同步] 数据库还原完成！系统已自动加载新数据。"
+        
+        # 更新缓存的数据指纹
+        update_data_fingerprints
     else
         echo "[错误] SQL 转换失败，跳过还原。"
     fi
+}
+
+# ================= 新增：数据指纹函数 =================
+
+# 获取壁纸链接
+get_background_url() {
+    if [ -f "$SOURCE_FILE" ]; then
+        sqlite3 "$SOURCE_FILE" "SELECT value FROM settings WHERE key='background';" 2>/dev/null || echo ""
+    else
+        echo ""
+    fi
+}
+
+# 获取卡片排序指纹 (id:order 的组合哈希)
+get_cards_order_hash() {
+    if [ -f "$SOURCE_FILE" ]; then
+        sqlite3 "$SOURCE_FILE" "SELECT id, menu_id, sub_menu_id, \"order\" FROM cards ORDER BY id;" 2>/dev/null | md5sum | cut -d' ' -f1
+    else
+        echo ""
+    fi
+}
+
+# 获取整体数据哈希 (用于检测任何数据变化)
+get_data_hash() {
+    if [ -f "$SOURCE_FILE" ]; then
+        sqlite3 "$SOURCE_FILE" ".dump" 2>/dev/null | md5sum | cut -d' ' -f1
+    else
+        echo ""
+    fi
+}
+
+# 更新所有数据指纹缓存
+update_data_fingerprints() {
+    LAST_DATA_HASH=$(get_data_hash)
+    LAST_BG_URL=$(get_background_url)
+    LAST_CARDS_HASH=$(get_cards_order_hash)
+}
+
+# 检测数据是否有变化
+check_data_changed() {
+    local current_hash=$(get_data_hash)
+    local current_bg=$(get_background_url)
+    local current_cards=$(get_cards_order_hash)
+    
+    local changed=0
+    local change_reasons=""
+    
+    # 检测整体数据变化
+    if [ "$current_hash" != "$LAST_DATA_HASH" ]; then
+        changed=1
+        change_reasons="数据变化"
+    fi
+    
+    # 检测壁纸链接变化
+    if [ "$current_bg" != "$LAST_BG_URL" ]; then
+        changed=1
+        if [ -n "$change_reasons" ]; then
+            change_reasons="$change_reasons + 壁纸更新"
+        else
+            change_reasons="壁纸更新"
+        fi
+        echo "[同步] 检测到壁纸链接变化:"
+        echo "       旧: $LAST_BG_URL"
+        echo "       新: $current_bg"
+    fi
+    
+    # 检测卡片排序变化
+    if [ "$current_cards" != "$LAST_CARDS_HASH" ]; then
+        changed=1
+        if [ -n "$change_reasons" ]; then
+            change_reasons="$change_reasons + 卡片排序"
+        else
+            change_reasons="卡片排序"
+        fi
+        echo "[同步] 检测到卡片排序变化"
+    fi
+    
+    if [ $changed -eq 1 ]; then
+        echo "[同步] 变化类型: $change_reasons"
+    fi
+    
+    return $changed
 }
 
 # 初始化逻辑
@@ -91,19 +182,21 @@ init_repo() {
         cd ..
     fi
     fix_permissions
+    
+    # 初始化数据指纹
+    update_data_fingerprints
+    echo "[同步] 初始数据指纹已记录"
 }
 
 # 监控循环
 monitor() {
-    echo "[同步] 启动后台监控 (当前模式: SQL文本双向同步)..."
-    LAST_TIME=$(stat -c %Y "$SOURCE_FILE" 2>/dev/null || echo 0)
+    echo "[同步] 启动后台监控 (当前模式: SQL文本双向同步 + 壁纸/排序检测)..."
 
     while true; do
         sleep "$CHECK_INTERVAL"
         
         # 阶段一：下行同步 (Cloud -> Local)
         cd "$BACKUP_DIR" || exit
-        # 使用 -q 让它安静检查，不输出 FETCH_HEAD
         git fetch origin main -q
         
         if [ $(git rev-list HEAD..origin/main --count) -gt 0 ]; then
@@ -113,19 +206,18 @@ monitor() {
                 cd ..
                 restore_db_from_sql
                 cd "$BACKUP_DIR" || exit
-                LAST_TIME=$(stat -c %Y "$SOURCE_FILE")
             fi
         fi
         cd .. 
 
-        # 阶段二：上行同步 (Local -> Cloud)
+        # 阶段二：上行同步 (Local -> Cloud) - 使用数据指纹检测
         if [ ! -f "$SOURCE_FILE" ]; then continue; fi
-        CURRENT_TIME=$(stat -c %Y "$SOURCE_FILE")
-
-        if [ "$CURRENT_TIME" != "$LAST_TIME" ]; then
+        
+        # 使用数据内容哈希检测变化，而非仅依赖文件时间戳
+        if check_data_changed; then
             sleep 2
             
-            echo "[同步] 检测到本地添加了新书签/修改了数据，准备备份..."
+            echo "[同步] 检测到本地数据变化，准备备份..."
             export_db_to_sql
             cd "$BACKUP_DIR" || exit
             
@@ -141,7 +233,9 @@ monitor() {
                     echo "[警告] ⚠️ 推送失败，请稍后检查日志。"
                 fi
             fi
-            LAST_TIME=$(stat -c %Y "$SOURCE_FILE")
+            
+            # 更新数据指纹缓存
+            update_data_fingerprints
             cd ..
         fi
     done
