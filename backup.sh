@@ -35,7 +35,7 @@ else
 fi
 
 if [ -z "${GITHUB_TOKEN:-}" ] || [ -z "$GITHUB_USER" ] || [ -z "$GITHUB_REPO" ]; then
-    echo "[sync] missing required GitHub backup settings"
+    echo "[同步] 缺少必要的 GitHub 备份配置"
     exit 1
 fi
 
@@ -61,7 +61,7 @@ export_db_to_sql() {
 }
 
 restore_db_from_sql() {
-    echo "[sync] restoring database from remote SQL snapshot"
+    echo "[同步] 正在从远端 SQL 快照恢复数据库"
 
     local temp_db="/tmp/nav_restore.db"
     rm -f "$temp_db"
@@ -73,9 +73,9 @@ restore_db_from_sql() {
         rm -f "$temp_db"
         fix_permissions
         update_data_fingerprints
-        echo "[sync] restore completed"
+        echo "[同步] 数据库恢复完成"
     else
-        echo "[sync] restore skipped because generated database is empty"
+        echo "[同步] 跳过恢复：生成的数据库为空"
     fi
 }
 
@@ -130,7 +130,7 @@ check_data_changed() {
         else
             change_reasons="background"
         fi
-        echo "[sync] background changed"
+        echo "[同步] 检测到背景配置变化"
     fi
 
     if [ "$current_cards" != "$LAST_CARDS_HASH" ]; then
@@ -140,11 +140,11 @@ check_data_changed() {
         else
             change_reasons="card-order"
         fi
-        echo "[sync] card order changed"
+        echo "[同步] 检测到卡片排序变化"
     fi
 
     if [ "$changed" -eq 1 ]; then
-        echo "[sync] local changes detected: $change_reasons"
+        echo "[同步] 检测到本地数据变化: $change_reasons"
         return 0
     fi
 
@@ -156,7 +156,7 @@ ensure_repo_ready() {
 
     if [ ! -d "$BACKUP_DIR/.git" ]; then
         rm -rf "$BACKUP_DIR"
-        echo "[sync] cloning backup repository"
+        echo "[同步] 正在克隆备份仓库"
         git clone -q "$GIT_URL" "$BACKUP_DIR" || exit 1
     fi
 
@@ -176,11 +176,11 @@ init_repo() {
         update_data_fingerprints
     fi
 
-    echo "[sync] initial fingerprints captured"
+    echo "[同步] 初始数据指纹已记录"
 }
 
 monitor() {
-    echo "[sync] monitor started"
+    echo "[同步] 后台监控已启动"
 
     while true; do
         sleep "$CHECK_INTERVAL"
@@ -189,7 +189,7 @@ monitor() {
         git fetch origin main -q
 
         if [ "$(git rev-list HEAD..origin/main --count)" -gt 0 ]; then
-            echo "[sync] remote updates found"
+            echo "[同步] 检测到远端更新"
             git pull origin main --rebase -q
             if git diff HEAD@{1} HEAD --name-only | grep -q "^${SQL_FILE}\$"; then
                 cd .. || exit 1
@@ -207,7 +207,7 @@ monitor() {
         if check_data_changed; then
             sleep 2
 
-            echo "[sync] exporting local database snapshot"
+            echo "[同步] 正在导出本地数据库快照"
             export_db_to_sql
 
             cd "$BACKUP_DIR" || exit 1
@@ -216,9 +216,9 @@ monitor() {
             if [ -n "$(git status --porcelain)" ]; then
                 git commit -q -m "data update: $(date '+%Y-%m-%d %H:%M:%S')"
                 if git push origin main -q; then
-                    echo "[sync] push completed"
+                    echo "[同步] 推送完成"
                 else
-                    echo "[sync] push failed"
+                    echo "[同步] 推送失败"
                 fi
             fi
 
