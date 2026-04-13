@@ -96,7 +96,7 @@ router.post('/', upload.any(), async (req, res) => {
       console.log(`[上传] 壁纸已更新: ${file.filename} -> ${finalUrl}`);
 
       // 清理 R2 历史壁纸 (保留最近 5 张)
-      r2.cleanupOldWallpapers('uploads/bg_admin_wallpaper_', 5).catch(() => {});
+      r2.cleanupOldWallpapers('uploads/', 5).catch(() => {});
       // 清理本地历史壁纸
       cleanupLocalWallpapers(file.filename, 5);
     }
