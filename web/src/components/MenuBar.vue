@@ -1,6 +1,12 @@
 <template>
   <Teleport to="body">
-    <div class="desktop-menu-wrapper" v-if="!isMobileView">
+    <div 
+      class="desktop-menu-wrapper" 
+      v-if="!isMobileView"
+      @mouseenter="handleWrapperMouseEnter"
+      @mouseleave="handleWrapperMouseLeave"
+      :class="{ 'is-expanded': isMenuExpanded }"
+    >
       
       <div class="capsule-hint">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;">
@@ -102,6 +108,27 @@ const emit = defineEmits(['select']);
 const hoveredMenuId = ref(null);
 const menuBarRef = ref(null); 
 
+// 【修改点 2】：新增的 JS 防抖逻辑，用于控制主菜单的展开和收起
+const isMenuExpanded = ref(false); // 记录主菜单是否处于展开状态
+let expandTimeout = null; // 用于存储定时器的变量
+
+// 鼠标进入菜单区域时触发
+function handleWrapperMouseEnter() {
+  // 如果之前设定了收起菜单的定时器，马上取消它，防止菜单收回
+  clearTimeout(expandTimeout); 
+  // 将状态设置为展开
+  isMenuExpanded.value = true; 
+}
+
+// 鼠标离开菜单区域时触发
+function handleWrapperMouseLeave() {
+  // 不立刻收起菜单，而是设定一个 250 毫秒（0.25秒）的定时器
+  // 这样如果用户不小心滑出边界又立刻滑回来，菜单就不会闪烁
+  expandTimeout = setTimeout(() => {
+    isMenuExpanded.value = false; // 250 毫秒后，真正将状态改为收起
+  }, 250); 
+}
+
 function showSubMenu(menuId) { hoveredMenuId.value = menuId; }
 function hideSubMenu(menuId) { setTimeout(() => { if (hoveredMenuId.value === menuId) hoveredMenuId.value = null; }, 100); }
 
@@ -183,7 +210,6 @@ function onTouchEnd() {
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
 }
 
-/* 👈 【核心修复1】：主菜单的毛玻璃替身，解决子菜单模糊失效问题 */
 .desktop-menu-wrapper::before {
   content: '';
   position: absolute;
@@ -196,13 +222,14 @@ function onTouchEnd() {
   transition: background 0.3s ease;
 }
 
-.desktop-menu-wrapper:hover {
+/* 【修改点 3】：将原本的 :hover 替换为 JS 控制的类名 .is-expanded */
+.desktop-menu-wrapper.is-expanded {
   max-width: calc(100vw - 120px); 
   border-radius: 12px; 
 }
 
 /* 展开时的背景同样交给替身处理 */
-.desktop-menu-wrapper:hover::before {
+.desktop-menu-wrapper.is-expanded::before {
   background: rgba(15, 20, 30, 0.45); 
 }
 
@@ -215,7 +242,7 @@ function onTouchEnd() {
   font-weight: 500;
   transition: opacity 0.3s ease, transform 0.3s ease;
 }
-.desktop-menu-wrapper:hover .capsule-hint {
+.desktop-menu-wrapper.is-expanded .capsule-hint {
   opacity: 0;
   transform: translateY(-8px);
   pointer-events: none;
@@ -240,7 +267,7 @@ function onTouchEnd() {
 }
 .menu-bar::-webkit-scrollbar { display: none; }
 
-.desktop-menu-wrapper:hover .menu-bar {
+.desktop-menu-wrapper.is-expanded .menu-bar {
   opacity: 1;
   visibility: visible;
   transition-delay: 0.1s; 
@@ -265,12 +292,10 @@ function onTouchEnd() {
    ========================================= */
 .sub-menu { 
   position: absolute; 
-  /* 👈 【核心修复2】：往上移 1px，完美压住主菜单的底边细线 */
   top: calc(100% - 1px); 
   left: 50%; 
   transform: translateX(-50%); 
   
-  /* 👈 【核心修复3】：删掉上边框，让顶部平滑敞开 */
   border-left: 1px solid rgba(255, 255, 255, 0.15);
   border-right: 1px solid rgba(255, 255, 255, 0.15);
   border-bottom: 1px solid rgba(255, 255, 255, 0.15);
@@ -287,7 +312,6 @@ function onTouchEnd() {
   padding: 4px 0; 
 }
 
-/* 👈 【核心修复4】：子菜单的毛玻璃替身，让子菜单的玻璃质感满血复活！ */
 .sub-menu::after {
   content: '';
   position: absolute;
@@ -330,9 +354,6 @@ function onTouchEnd() {
   font-weight: 500 !important; 
 }
 
-/* =========================================
-   CSS 悬停桥（Hover Bridge，防止手抖滑出菜单）
-   ========================================= */
 .sub-menu::before {
   content: '';
   position: absolute;
