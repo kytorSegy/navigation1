@@ -248,7 +248,7 @@ function onTouchEnd() {
 .sub-menu { 
   position: absolute; 
   /* 👈【魔法1】：往上挪 1px，精准压在主菜单的底部白边上 */
-  top: calc(100% - 1px); 
+  top: calc(100% - 0px); 
   left: 50%; 
   transform: translateX(-50%); 
   
