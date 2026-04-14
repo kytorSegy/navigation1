@@ -20,6 +20,7 @@
           @click="$emit('select', menu)"
           :class="{active: menu.id === activeId}"
         >{{ menu.name }}</button>
+        
         <div
           v-if="menu.subMenus && menu.subMenus.length > 0"
           class="sub-menu"
@@ -38,13 +39,12 @@
   </div>
 
   <div class="mobile-menu-header" v-if="isMobileView">
-    <div class="mobile-header-left">
-      <button class="hamburger-btn" @click="drawerOpen = true" aria-label="打开菜单">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
-        </svg>
-      </button>
-    </div>
+    <button class="hamburger-btn" @click="drawerOpen = true" aria-label="打开菜单">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+      </svg>
+    </button>
+    
     <div class="mobile-breadcrumb">
       <span class="mobile-breadcrumb-main" v-if="activeMenuObj">{{ activeMenuObj.name }}</span>
       <template v-if="activeSubMenuObj">
@@ -52,6 +52,8 @@
         <span class="mobile-breadcrumb-sub">{{ activeSubMenuObj.name }}</span>
       </template>
     </div>
+    
+    <div class="hamburger-spacer"></div>
   </div>
 
   <Teleport to="body">
@@ -148,12 +150,10 @@ function onTouchEnd() {
    桌面端：悬浮胶囊 CSS 动画
    ========================================= */
 .desktop-menu-wrapper {
-  position: fixed; 
-  top: 20px;
-  left: 50%;
-  transform: translateX(-50%);
+  /* 【改动1】去掉了 position: fixed，让它变成普通的流式元素，可以放在任何地方 */
+  position: relative; 
+  margin: 0 auto 24px auto; /* 让它自己居中，并且距离下方的搜索框 24px */
   height: 48px;
-  /* 胶囊背景：半透明黑色，带毛玻璃 */
   background: rgba(20, 25, 35, 0.5); 
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
@@ -164,21 +164,18 @@ function onTouchEnd() {
   justify-content: center;
   z-index: 1000;
   
-  /* 默认宽度为 110px，刚好装下“菜单栏”三个字 */
-  max-width: 110px; 
-  transition: max-width 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), background 0.3s ease, border-radius 0.3s ease;
+  /* 【改动2】稍微加长了胶囊的默认宽度，显得更大气 */
+  max-width: 130px; 
+  transition: max-width 0.5s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s ease, border-radius 0.3s ease;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-  overflow: hidden; /* 防止里面的菜单在没展开时露出来 */
 }
 
-/* 鼠标放上去时，胶囊伸长！ */
 .desktop-menu-wrapper:hover {
-  max-width: 1200px; 
-  background: rgba(20, 25, 35, 0.7); 
-  border-radius: 16px; /* 展开后稍微方一点点，更好看 */
+  max-width: 1000px; 
+  background: rgba(20, 25, 35, 0.75); 
+  border-radius: 12px; 
 }
 
-/* 胶囊提示文字 */
 .capsule-hint {
   position: absolute;
   display: flex;
@@ -186,17 +183,14 @@ function onTouchEnd() {
   color: rgba(255, 255, 255, 0.85);
   font-size: 14px;
   font-weight: 500;
-  letter-spacing: 1px;
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  transition: opacity 0.3s ease, transform 0.3s ease;
 }
-/* 展开时，隐藏提示文字 */
 .desktop-menu-wrapper:hover .capsule-hint {
   opacity: 0;
-  transform: translateY(-10px);
+  transform: translateY(-8px);
   pointer-events: none;
 }
 
-/* 真正的菜单容器 */
 .menu-bar {
   display: flex;
   align-items: center;
@@ -206,11 +200,10 @@ function onTouchEnd() {
   visibility: hidden;
   transition: opacity 0.3s ease, visibility 0.3s ease;
 }
-/* 悬浮时，显示菜单 */
 .desktop-menu-wrapper:hover .menu-bar {
   opacity: 1;
   visibility: visible;
-  transition-delay: 0.15s; 
+  transition-delay: 0.1s; 
 }
 
 .menu-item { position: relative; }
@@ -220,7 +213,7 @@ function onTouchEnd() {
 .menu-bar button.active { color: #399dff; }
 .menu-bar button.active::before { width: 40%; }
 
-.sub-menu { position: absolute; top: calc(100% + 5px); left: 50%; transform: translateX(-50%); backdrop-filter: blur(12px); border-radius: 10px; min-width: 110px; opacity: 0; visibility: hidden; transition: all 0.2s ease; z-index: 1000; box-shadow: 0 8px 24px rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); background: rgba(20,25,35,0.85); }
+.sub-menu { position: absolute; top: calc(100% + 5px); left: 50%; transform: translateX(-50%); backdrop-filter: blur(12px); border-radius: 10px; min-width: 110px; opacity: 0; visibility: hidden; transition: all 0.2s ease; z-index: 1000; box-shadow: 0 8px 24px rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); background: rgba(20,25,35,0.85); padding: 4px 0; }
 .sub-menu.show { opacity: 1; visibility: visible; transform: translateX(-50%) translateY(0); }
 .sub-menu-item { display: block !important; width: 100% !important; text-align: center !important; padding: 0.6rem 1rem !important; border: none !important; color: #eee !important; font-size: 13px !important; transition: all 0.2s ease !important; background: transparent !important; }
 .sub-menu-item:hover { background: rgba(255,255,255,0.1) !important; color: #fff !important; }
@@ -229,12 +222,18 @@ function onTouchEnd() {
 /* =========================================
    移动端：顶栏和极致毛玻璃抽屉
    ========================================= */
-.mobile-menu-header { display: flex; align-items: center; justify-content: space-between; padding: 12px; width: 100%; box-sizing: border-box; }
+.mobile-menu-header { 
+  /* 【改动3】让手机端的菜单栏永远固定在页面最上方 */
+  position: fixed; 
+  top: 0; left: 0; width: 100%; z-index: 100;
+  display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; box-sizing: border-box; 
+}
 .hamburger-btn { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.1); backdrop-filter: blur(8px); color: #fff; border: 1px solid rgba(255,255,255,0.1); cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .mobile-breadcrumb { display: flex; align-items: center; gap: 6px; color: rgba(255,255,255,0.9); }
-.mobile-breadcrumb-main { font-size: 14px; font-weight: 600; }
+.mobile-breadcrumb-main { font-size: 15px; font-weight: 600; }
 .mobile-breadcrumb-sep { font-size: 12px; color: rgba(255,255,255,0.4); }
 .mobile-breadcrumb-sub { font-size: 13px; color: rgba(255,255,255,0.7); }
+.hamburger-spacer { width: 40px; }
 
 .drawer-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 999; }
 .backdrop-enter { animation: fadeInBg 0.3s ease forwards; }
@@ -242,17 +241,13 @@ function onTouchEnd() {
 @keyframes fadeInBg { from { opacity: 0; } to { opacity: 1; } }
 @keyframes fadeOutBg { from { opacity: 1; } to { opacity: 0; } }
 
-/* 【核心】：抽屉的毛玻璃效果 */
 .drawer-panel { 
   position: fixed; left: 0; z-index: 1000; width: 75vw; max-width: 300px; 
-  top: 0; bottom: 0; 
-  
-  /* 半透明暗色背景 + 强力模糊，制造玻璃质感 */
+  top: 56px; bottom: max(80px, calc(60px + env(safe-area-inset-bottom, 20px))); 
+  border-top-right-radius: 16px; border-bottom-right-radius: 16px;
   background: rgba(15, 20, 30, 0.35); 
   backdrop-filter: blur(25px) saturate(130%); 
   -webkit-backdrop-filter: blur(25px) saturate(130%);
-  
-  /* 右侧的亮色反光边线 */
   border-right: 1px solid rgba(255, 255, 255, 0.15); 
   box-shadow: 10px 0 30px rgba(0,0,0,0.2); 
   display: flex; flex-direction: column; overflow: hidden; 
