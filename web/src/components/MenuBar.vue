@@ -108,24 +108,18 @@ const emit = defineEmits(['select']);
 const hoveredMenuId = ref(null);
 const menuBarRef = ref(null); 
 
-// 【修改点 2】：新增的 JS 防抖逻辑，用于控制主菜单的展开和收起
-const isMenuExpanded = ref(false); // 记录主菜单是否处于展开状态
-let expandTimeout = null; // 用于存储定时器的变量
+// 这里保留了修复闪烁Bug的JS防抖逻辑
+const isMenuExpanded = ref(false); 
+let expandTimeout = null; 
 
-// 鼠标进入菜单区域时触发
 function handleWrapperMouseEnter() {
-  // 如果之前设定了收起菜单的定时器，马上取消它，防止菜单收回
   clearTimeout(expandTimeout); 
-  // 将状态设置为展开
   isMenuExpanded.value = true; 
 }
 
-// 鼠标离开菜单区域时触发
 function handleWrapperMouseLeave() {
-  // 不立刻收起菜单，而是设定一个 250 毫秒（0.25秒）的定时器
-  // 这样如果用户不小心滑出边界又立刻滑回来，菜单就不会闪烁
   expandTimeout = setTimeout(() => {
-    isMenuExpanded.value = false; // 250 毫秒后，真正将状态改为收起
+    isMenuExpanded.value = false;
   }, 250); 
 }
 
@@ -188,7 +182,7 @@ function onTouchEnd() {
 
 <style scoped>
 /* =========================================
-   桌面端：悬浮菜单主框
+   桌面端：悬浮菜单主框（原样保留）
    ========================================= */
 .desktop-menu-wrapper {
   position: fixed; 
@@ -197,14 +191,11 @@ function onTouchEnd() {
   transform: translateX(-50%);
   height: 40px; 
   z-index: 9999; 
-  
-  /* 边框和圆角保留在本体，但去掉了本体的毛玻璃属性 */
   border: 1px solid rgba(255, 255, 255, 0.15); 
   border-radius: 20px; 
   display: flex;
   align-items: center; 
   justify-content: center;
-  
   max-width: 130px; 
   transition: max-width 0.5s cubic-bezier(0.4, 0, 0.2, 1), border-radius 0.3s ease;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
@@ -222,13 +213,11 @@ function onTouchEnd() {
   transition: background 0.3s ease;
 }
 
-/* 【修改点 3】：将原本的 :hover 替换为 JS 控制的类名 .is-expanded */
 .desktop-menu-wrapper.is-expanded {
   max-width: calc(100vw - 120px); 
   border-radius: 12px; 
 }
 
-/* 展开时的背景同样交给替身处理 */
 .desktop-menu-wrapper.is-expanded::before {
   background: rgba(15, 20, 30, 0.45); 
 }
@@ -242,6 +231,7 @@ function onTouchEnd() {
   font-weight: 500;
   transition: opacity 0.3s ease, transform 0.3s ease;
 }
+
 .desktop-menu-wrapper.is-expanded .capsule-hint {
   opacity: 0;
   transform: translateY(-8px);
@@ -257,7 +247,6 @@ function onTouchEnd() {
   opacity: 0;
   visibility: hidden;
   transition: opacity 0.3s ease, visibility 0.3s ease;
-  
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: none; 
@@ -288,64 +277,54 @@ function onTouchEnd() {
 .menu-bar button.active::before { width: 40%; }
 
 /* =========================================
-   子菜单 (1px 压边 + 无上边框)
+   👇 这里是为你搬运过来的：瞬间模糊且带有位移的子菜单样式 👇
    ========================================= */
 .sub-menu { 
   position: absolute; 
-  top: calc(100% - 1px); 
+  top: 100%; /* 使用你提供的定位 */
   left: 50%; 
   transform: translateX(-50%); 
   
-  border-left: 1px solid rgba(255, 255, 255, 0.15);
-  border-right: 1px solid rgba(255, 255, 255, 0.15);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
-  border-top: none; 
-  
-  border-radius: 0 0 12px 12px; 
-  
-  min-width: 110px; 
+  /* 最关键的：没有深色背景，直接上模糊滤镜，实现一出来就模糊 */
+  backdrop-filter: blur(8px); 
+  border-radius: 6px; 
+  min-width: 120px; 
   opacity: 0; 
   visibility: hidden; 
   transition: all 0.2s ease; 
   z-index: 1000; 
-  box-shadow: 0 8px 24px rgba(0,0,0,0.3); 
-  padding: 4px 0; 
-}
-
-.sub-menu::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  border-radius: inherit;
-  background: rgba(15, 20, 30, 0.45); 
-  backdrop-filter: blur(25px) saturate(130%); 
-  -webkit-backdrop-filter: blur(25px) saturate(130%);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4); 
+  border: 1px solid rgba(255,255,255,0.15); 
+  margin-top: -2px; 
 }
 
 .sub-menu.show { 
   opacity: 1; 
   visibility: visible; 
-  transform: translateX(-50%) translateY(0); 
+  /* 带有极轻微的2px下移视觉效果，很高级的障眼法 */
+  transform: translateX(-50%) translateY(2px); 
 }
 
 .sub-menu-item { 
   display: block !important; 
   width: 100% !important; 
   text-align: center !important; 
-  padding: 0.6rem 1rem !important; 
+  padding: 0.4rem 1rem !important; 
   border: none !important; 
   background: transparent !important; 
-  color: #eee !important; 
-  font-size: 13px !important; 
+  color: #fff !important; 
+  font-size: 14px !important; 
   cursor: pointer !important; 
   transition: all 0.2s ease !important; 
   border-radius: 0 !important; 
+  text-shadow: none !important; 
+  line-height: 1.5 !important; 
 }
 
 .sub-menu-item:hover { 
   background: rgba(57,157,255,0.25) !important; 
-  color: #fff !important; 
+  color: #399dff !important; 
+  transform: none !important; 
 }
 
 .sub-menu-item.active { 
@@ -354,6 +333,11 @@ function onTouchEnd() {
   font-weight: 500 !important; 
 }
 
+.sub-menu-item::before { 
+  display: none; 
+}
+
+/* 这是一个隐形的防手抖桥梁，保留它能让你鼠标移向子菜单时更稳定 */
 .sub-menu::before {
   content: '';
   position: absolute;
@@ -363,9 +347,12 @@ function onTouchEnd() {
   height: 15px; 
   background: transparent; 
 }
+/* =========================================
+   👆 子菜单样式结束 👆
+   ========================================= */
 
 /* =========================================
-   移动端：顶栏和极致毛玻璃抽屉
+   移动端：顶栏和极致毛玻璃抽屉（原样保留）
    ========================================= */
 .mobile-menu-header { 
   position: fixed; 
