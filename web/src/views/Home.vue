@@ -2,22 +2,31 @@
   <div class="home-container">
     <div class="bg-placeholder"></div>
     <video v-if="shouldShowVideo" class="bg-video" :class="{ 'fade-in': isBgLoaded }" :src="customBackground" autoplay loop muted playsinline webkit-playsinline preload="auto" ref="bgVideoRef" @canplay="onVideoCanPlay" @loadeddata="onVideoLoadedData" @error="onVideoError" @ended="onVideoEnded" :poster="transparentPixel"></video>
+    <img v-show="false" ref="bgImageRef" crossorigin="anonymous" />
     <div v-if="shouldShowImage" class="bg-image" :class="{ 'fade-in': isBgLoaded }" :style="customBackground ? { backgroundImage: `url('${customBackground}')` } : {}"></div>
+    
     <div v-if="needsInteraction && isBgLoaded" class="tap-to-play-hint" @click="forcePlay">轻触屏幕播放动态壁纸</div>
 
     <div class="content-overlay">
       <button class="theme-toggle-btn" @click="showThemeSettings = true" title="自定义壁纸">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path></svg>
       </button>
-      <div class="menu-bar-fixed"><MenuBar :menus="menus" :activeId="activeMenu?.id" :activeSubMenuId="activeSubMenu?.id" @select="selectMenu" /></div>
-      <div class="search-section"><div class="search-box-wrapper">
-        <div class="search-engine-select"><button v-for="engine in searchEngines" :key="engine.name" :class="['engine-btn',{active:selectedEngine.name===engine.name}]" @click="selectEngine(engine)">{{engine.label}}</button></div>
-        <div class="search-container">
-          <input v-model="searchQuery" type="text" :placeholder="selectedEngine.placeholder" class="search-input" @keyup.enter="handleSearch" enterkeyhint="search" autocomplete="off" />
-          <button v-if="searchQuery" class="clear-btn" @click="clearSearch" aria-label="清空"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"></path></svg></button>
-          <button @click="handleSearch" class="search-btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      
+      <div class="search-section">
+        
+        <img :src="currentLogoSrc" alt="八方来财 Logo" class="home-logo" />
+
+        <MenuBar :menus="menus" :activeId="activeMenu?.id" :activeSubMenuId="activeSubMenu?.id" @select="selectMenu" />
+
+        <div class="search-box-wrapper">
+          <div class="search-engine-select"><button v-for="engine in searchEngines" :key="engine.name" :class="['engine-btn',{active:selectedEngine.name===engine.name}]" @click="selectEngine(engine)">{{engine.label}}</button></div>
+          <div class="search-container">
+            <input v-model="searchQuery" type="text" :placeholder="selectedEngine.placeholder" class="search-input" @keyup.enter="handleSearch" enterkeyhint="search" autocomplete="off" />
+            <button v-if="searchQuery" class="clear-btn" @click="clearSearch" aria-label="清空"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"></path></svg></button>
+            <button @click="handleSearch" class="search-btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          </div>
         </div>
-      </div></div>
+      </div>
       <div v-if="leftAds.length" class="ad-space-fixed left-ad-fixed"><a v-for="ad in leftAds" :key="ad.id" :href="ad.url" target="_blank"><img :src="ad.img" alt="" /></a></div>
       <div v-if="rightAds.length" class="ad-space-fixed right-ad-fixed"><a v-for="ad in rightAds" :key="ad.id" :href="ad.url" target="_blank"><img :src="ad.img" alt="" /></a></div>
       <CardGrid :cards="filteredCards"/>
@@ -27,7 +36,6 @@
       </div></footer>
     </div>
 
-    <!-- 友情链接弹窗 -->
     <div v-if="showFriendLinks" class="modal-overlay" @click="showFriendLinks = false">
       <div class="modal-content modal-bottom-sheet" @click.stop>
         <div class="modal-header"><h3>友情链接</h3><button @click="showFriendLinks = false" class="close-btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"></path></svg></button></div>
@@ -40,7 +48,6 @@
       </div>
     </div>
 
-    <!-- 壁纸设置弹窗 -->
     <div v-if="showThemeSettings" class="modal-overlay" @click="showThemeSettings = false">
       <div class="modal-content theme-modal modal-bottom-sheet" @click.stop>
         <div class="modal-header"><h3>个性化壁纸设置</h3><button @click="showThemeSettings = false" class="close-btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"></path></svg></button></div>
@@ -80,7 +87,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, watch } from 'vue';
+import { ref, onMounted, computed, watch, nextTick } from 'vue';
 import { getMenus, getCards, getAds, getFriends, getConfig, searchCards } from '../api';
 import MenuBar from '../components/MenuBar.vue';
 import CardGrid from '../components/CardGrid.vue';
@@ -92,13 +99,43 @@ const globalBackground = ref(''); const globalBgType = ref('auto');
 const customBackground = ref(''); const customBgType = ref('auto');
 const showThemeSettings = ref(false); const visitorMode = ref('local');
 const visitorBgInput = ref(''); const visitorBgType = ref('auto');
-const isBgLoaded = ref(false); const bgVideoRef = ref(null);
+const isBgLoaded = ref(false); const bgVideoRef = ref(null); const bgImageRef = ref(null);
 const videoFailed = ref(false); const needsInteraction = ref(false);
 const isDragOver = ref(false); const localFileName = ref('');
 const fileInputRef = ref(null); const formatError = ref('');
 const transparentPixel = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
 
-// 支持的视频格式: mp4, webm, ogg, mov, m4v, avi, mkv
+const logoType = ref('white'); 
+const currentLogoSrc = computed(() => `/${logoType.value}.png`);
+
+function analyzeBrightness(sourceElement) {
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = 64; 
+    canvas.height = 64;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(sourceElement, 0, 0, 64, 64);
+    
+    const data = ctx.getImageData(0, 0, 64, 64).data;
+    let r = 0, g = 0, b = 0, count = 0;
+    
+    for(let i = 0; i < data.length; i += 4) {
+      if(data[i+3] > 0) {
+        r += data[i]; g += data[i+1]; b += data[i+2]; 
+        count++;
+      }
+    }
+    
+    if(count > 0) {
+      const avgBrightness = (r * 0.299 + g * 0.587 + b * 0.114) / count;
+      logoType.value = avgBrightness > 130 ? 'black' : 'white';
+    }
+  } catch(e) {
+    console.warn('跨域限制导致无法分析背景亮度，已恢复默认白色 Logo。');
+    logoType.value = 'white';
+  }
+}
+
 function isVideoType(url, bgType) {
   if (bgType==='video') return true; if (bgType==='image') return false; if (!url) return false;
   if (url.startsWith('data:video/')) return true;
@@ -110,7 +147,13 @@ const shouldShowVideo = computed(() => isVideoBg.value && !videoFailed.value);
 const shouldShowImage = computed(() => customBackground.value && !isVideoBg.value);
 
 function onVideoCanPlay() { isBgLoaded.value=true; attemptPlay(); }
-function onVideoLoadedData() { if(!isBgLoaded.value){isBgLoaded.value=true;attemptPlay();} }
+function onVideoLoadedData() { 
+  if(!isBgLoaded.value){
+    isBgLoaded.value=true;
+    attemptPlay();
+  }
+  setTimeout(() => { if(bgVideoRef.value) analyzeBrightness(bgVideoRef.value); }, 200);
+}
 function onVideoError() { videoFailed.value=true; isBgLoaded.value=true; }
 function onVideoEnded() { const v=bgVideoRef.value; if(v){v.currentTime=0; const p=v.play(); if(p&&p.catch)p.catch(()=>{videoFailed.value=true;});} }
 function attemptPlay() { const v=bgVideoRef.value; if(!v)return; v.muted=true; const p=v.play(); if(p&&p.catch)p.catch(err=>{if(err.name==='NotAllowedError')needsInteraction.value=true;else videoFailed.value=true;}); }
@@ -124,14 +167,33 @@ function setupTouchPlay() {
   document.addEventListener('touchstart',h,{once:true,passive:true}); document.addEventListener('click',h,{once:true});
 }
 
-watch(customBackground,(newUrl)=>{
+watch(customBackground, (newUrl) => {
   videoFailed.value=false; needsInteraction.value=false;
-  if(!newUrl){isBgLoaded.value=true;return;}
+  if(!newUrl){
+    isBgLoaded.value=true; 
+    logoType.value = 'white'; 
+    return;
+  }
+  
   isBgLoaded.value=false;
-  if(!isVideoBg.value){const img=new Image();img.src=newUrl;img.onload=()=>{isBgLoaded.value=true;};img.onerror=()=>{isBgLoaded.value=true;};}
-},{immediate:true});
+  
+  if(!isVideoBg.value){
+    nextTick(() => {
+      if(bgImageRef.value) {
+        bgImageRef.value.src = newUrl;
+        bgImageRef.value.onload = () => {
+          isBgLoaded.value=true;
+          analyzeBrightness(bgImageRef.value); 
+        };
+        bgImageRef.value.onerror = () => {
+          isBgLoaded.value=true;
+          logoType.value = 'white';
+        };
+      }
+    });
+  }
+}, {immediate:true});
 
-// 格式校验
 const ALLOWED_TYPES = /^(image\/(jpeg|png|gif|webp|bmp|svg\+xml)|video\/(mp4|webm|ogg|quicktime|x-m4v|x-msvideo|x-matroska))$/;
 const ALLOWED_EXTS = /\.(jpg|jpeg|png|gif|webp|bmp|svg|mp4|webm|ogg|mov|m4v|avi|mkv)$/i;
 
@@ -141,7 +203,6 @@ function validateFile(file) {
   return false;
 }
 
-// ========== IndexedDB ==========
 function openDB() {
   return new Promise((resolve,reject)=>{
     const req=indexedDB.open('VisitorThemeDB',1);
@@ -154,8 +215,7 @@ function processLocalFile(file) {
   if(!file) return;
   formatError.value = '';
   if (!validateFile(file)) {
-    formatError.value = `不支持的格式: ${file.name.split('.').pop()}。支持 JPG/PNG/GIF/WebP/MP4/MOV/WebM 等。`;
-    return;
+    formatError.value = `不支持的格式: ${file.name.split('.').pop()}`; return;
   }
   const type = (file.type.includes('video') || /\.(mp4|webm|ogg|mov|m4v|avi|mkv)$/i.test(file.name)) ? 'video' : 'image';
   const reader = new FileReader();
@@ -163,16 +223,11 @@ function processLocalFile(file) {
   reader.onload = async (e)=>{
     const base64Data = e.target.result;
     try {
-      const db = await openDB();
-      const tx = db.transaction('wallpapers','readwrite');
-      const store = tx.objectStore('wallpapers');
-      store.clear();
-      store.put({id:'current',data:base64Data,type,name:file.name,timestamp:Date.now()});
+      const db = await openDB(); const tx = db.transaction('wallpapers','readwrite'); const store = tx.objectStore('wallpapers');
+      store.clear(); store.put({id:'current',data:base64Data,type,name:file.name,timestamp:Date.now()});
       tx.oncomplete=()=>{
-        customBackground.value=base64Data; customBgType.value=type;
-        localFileName.value=file.name;
-        localStorage.setItem('visitor_use_local_db','true');
-        localStorage.setItem('visitor_local_name',file.name);
+        customBackground.value=base64Data; customBgType.value=type; localFileName.value=file.name;
+        localStorage.setItem('visitor_use_local_db','true'); localStorage.setItem('visitor_local_name',file.name);
         localStorage.removeItem('visitor_bg'); localStorage.removeItem('visitor_bg_type');
         showThemeSettings.value=false;
       };
@@ -181,11 +236,7 @@ function processLocalFile(file) {
 }
 
 function handleVisitorLocalFile(event) { processLocalFile(event.target.files[0]); }
-function handleDrop(event) {
-  isDragOver.value=false;
-  const file=event.dataTransfer.files[0];
-  if (file) processLocalFile(file);
-}
+function handleDrop(event) { isDragOver.value=false; const file=event.dataTransfer.files[0]; if (file) processLocalFile(file); }
 
 async function loadLocalWallpaper() {
   if(localStorage.getItem('visitor_use_local_db')==='true'){
@@ -260,14 +311,41 @@ function handleLogoError(e){e.target.style.display='none';if(e.target.nextElemen
 .bg-image{position:fixed;inset:0;background-size:cover;background-position:center;background-repeat:no-repeat;z-index:0}
 .bg-video{position:fixed;top:0;left:0;width:100vw;height:100vh;height:100dvh;object-fit:cover;z-index:0;-webkit-transform:translateZ(0);transform:translateZ(0)}
 .home-container::before{content:'';position:fixed;inset:0;background:rgba(0,0,0,0.3);z-index:1}
-.content-overlay{position:relative;z-index:2;flex:1;display:flex;flex-direction:column;padding-top:50px}
+
+/* 【修复】考虑到手机端的汉堡按钮固定在顶部，我们给内容增加一点上内边距防遮挡 */
+.content-overlay{position:relative;z-index:2;flex:1;display:flex;flex-direction:column;padding-top:40px}
+@media(max-width:767px){.content-overlay{padding-top:60px}} 
+
 .tap-to-play-hint{position:fixed;bottom:120px;left:50%;transform:translateX(-50%);z-index:3;background:rgba(0,0,0,0.5);backdrop-filter:blur(8px);color:#fff;font-size:12px;padding:8px 16px;border-radius:20px;animation:pulse 2s ease-in-out infinite;cursor:pointer}
 @keyframes pulse{0%,100%{opacity:.8}50%{opacity:1}}
 .theme-toggle-btn{position:fixed;top:16px;right:16px;z-index:101;background:rgba(255,255,255,0.15);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.3);border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center;color:#fff;cursor:pointer;transition:all .3s;box-shadow:0 4px 12px rgba(0,0,0,0.1)}
 .theme-toggle-btn:active{background:rgba(255,255,255,0.25);transform:scale(0.95)}
 @media(pointer:fine){.theme-toggle-btn:hover{background:rgba(255,255,255,0.25);transform:rotate(15deg) scale(1.1)}}
-.menu-bar-fixed{position:fixed;top:.6rem;left:0;width:100vw;z-index:100}
-@media(max-width:767px){.menu-bar-fixed{position:static;width:100%}.content-overlay{padding-top:0}}
+
+/* ==============================================
+   【修改】Logo 的 CSS 定位：桌面端移至左上角
+   ============================================== */
+.home-logo {
+  height: 48px; 
+  margin-bottom: 16px;
+  position: relative; 
+  z-index: 10;
+  object-fit: contain;
+  transition: opacity 0.5s ease;
+  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.25)); 
+}
+@media(min-width: 768px){
+  .home-logo { 
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    transform: none;
+    height: 40px;
+    margin-bottom: 0;
+    z-index: 100;
+  }
+}
+
 .search-engine-select{display:flex;align-items:center;padding-bottom:.3rem;gap:3px;overflow-x:auto}
 .engine-btn{border:none;background:none;color:#fff;font-size:.8rem;padding:4px 10px;border-radius:4px;cursor:pointer;white-space:nowrap;min-height:32px}
 .engine-btn.active,.engine-btn:hover{color:#399dff;background:#ffffff1a}
@@ -277,7 +355,7 @@ function handleLogoError(e){e.target.style.display='none';if(e.target.nextElemen
 .clear-btn{background:none;border:none;cursor:pointer;display:flex;align-items:center;padding:4px;min-width:36px;min-height:36px;justify-content:center}
 .search-btn{background:transparent;color:#fff;border:none;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer}
 .search-section{display:flex;flex-direction:column;align-items:center;padding:1.5rem 0 2rem;z-index:2}
-@media(min-width:768px){.search-section{padding:2.8rem 0}}
+@media(min-width:768px){.search-section{padding:3.5rem 0 2rem}}
 .search-box-wrapper{display:flex;flex-direction:column;align-items:center;width:100%;max-width:480px;padding:0 12px;box-sizing:border-box}
 .ad-space-fixed{position:fixed;top:13rem;z-index:10;width:90px;display:flex;flex-direction:column;align-items:center;gap:5px}
 .left-ad-fixed{left:0}.right-ad-fixed{right:0}

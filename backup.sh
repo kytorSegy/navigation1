@@ -242,28 +242,30 @@ monitor() {
             WALLPAPER_CHANGED=true
         fi
 
-        # 如果时间戳变了，或者壁纸变了，说明我们要备份了
+        # 如果时间戳变了，或者壁纸变了，说明可能要备份了
         if [ "$CURRENT_TIME" != "$LAST_TIME" ] || [ "$WALLPAPER_CHANGED" = true ]; then
             sleep 2 # 稍微等两秒，确保数据写入完成
             
-            # 分别输出检测到的变化类型，让日志看起来更清晰
-            if [ "$CURRENT_TIME" != "$LAST_TIME" ]; then
-                echo "[数据库同步] ↑ 检测到本地数据库变化，准备备份..."
-            fi
-            if [ "$WALLPAPER_CHANGED" = true ]; then
-                echo "[壁纸链接同步] ↑ 检测到本地壁纸链接变化:"
-                echo "[壁纸链接同步]   旧链接: ${LAST_WALLPAPER_URL:-（空）}"
-                echo "[壁纸链接同步]   新链接: ${CURRENT_WALLPAPER_URL:-（空）}"
-            fi
-            
-            # 导出最新的数据库和壁纸链接文件
+            # 先默默导出，交给 Git 去鉴定到底有没有真正的改动
             export_db_to_sql
             export_wallpaper_url
             
             cd "$BACKUP_DIR" || exit
             git add "$SQL_FILE" "$WALLPAPER_URL_FILE"
             
+            # 让 Git 来判断文件内容是否真的变化了
             if [ -n "$(git status --porcelain)" ]; then
+                
+                # 只有这里确认了真有实质性变化，才开始打印提示日志 (解决刷屏问题)
+                if [ "$CURRENT_TIME" != "$LAST_TIME" ]; then
+                    echo "[数据库同步] ↑ 检测到本地数据库变化，准备备份..."
+                fi
+                if [ "$WALLPAPER_CHANGED" = true ]; then
+                    echo "[壁纸链接同步] ↑ 检测到本地壁纸链接变化:"
+                    echo "[壁纸链接同步]   旧链接: ${LAST_WALLPAPER_URL:-（空）}"
+                    echo "[壁纸链接同步]   新链接: ${CURRENT_WALLPAPER_URL:-（空）}"
+                fi
+
                 # 根据改变的文件，生成有区分度的提交日志
                 COMMIT_MSG=""
                 SQL_CHANGED=$(git diff --cached --name-only | grep -c "$SQL_FILE" || true)
@@ -289,7 +291,7 @@ monitor() {
                     echo "[警告] ⚠️ 推送失败，请稍后检查日志。"
                 fi
             fi
-            # 更新状态变量
+            # 更新状态变量 (无论有没有实质变化，都刷新一下时间戳避免死循环)
             LAST_TIME=$(stat -c %Y "$SOURCE_FILE")
             LAST_WALLPAPER_URL="$CURRENT_WALLPAPER_URL"
             cd ..

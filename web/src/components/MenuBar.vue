@@ -1,40 +1,58 @@
 <template>
-  <!-- ===== 桌面端：原始水平菜单栏 ===== -->
-  <nav class="menu-bar" v-if="!isMobileView">
-    <div
-      v-for="menu in menus"
-      :key="menu.id"
-      class="menu-item"
-      @mouseenter="showSubMenu(menu.id)"
-      @mouseleave="hideSubMenu(menu.id)"
+  <Teleport to="body">
+    <div 
+      class="desktop-menu-wrapper" 
+      v-if="!isMobileView"
+      @mouseenter="handleWrapperMouseEnter"
+      @mouseleave="handleWrapperMouseLeave"
+      :class="{ 'is-expanded': isMenuExpanded }"
     >
-      <button
-        @click="$emit('select', menu)"
-        :class="{active: menu.id === activeId}"
-      >{{ menu.name }}</button>
-      <div
-        v-if="menu.subMenus && menu.subMenus.length > 0"
-        class="sub-menu"
-        :class="{ 'show': hoveredMenuId === menu.id }"
-      >
-        <button
-          v-for="subMenu in menu.subMenus"
-          :key="subMenu.id"
-          @click="$emit('select', subMenu, menu)"
-          :class="{active: subMenu.id === activeSubMenuId}"
-          class="sub-menu-item"
-        >{{ subMenu.name }}</button>
+      
+      <div class="capsule-hint">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;">
+          <line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
+        菜单栏
       </div>
-    </div>
-  </nav>
 
-  <!-- ===== 移动端：汉堡按钮 + 当前菜单名 ===== -->
+      <nav class="menu-bar" ref="menuBarRef" @wheel="handleWheel">
+        <div
+          v-for="menu in menus"
+          :key="menu.id"
+          class="menu-item"
+          @mouseenter="showSubMenu(menu.id)"
+          @mouseleave="hideSubMenu(menu.id)"
+        >
+          <button
+            @click="$emit('select', menu)"
+            :class="{active: menu.id === activeId}"
+          >{{ menu.name }}</button>
+          
+          <div
+            v-if="menu.subMenus && menu.subMenus.length > 0"
+            class="sub-menu"
+            :class="{ 'show': hoveredMenuId === menu.id }"
+          >
+            <button
+              v-for="subMenu in menu.subMenus"
+              :key="subMenu.id"
+              @click="$emit('select', subMenu, menu)"
+              :class="{active: subMenu.id === activeSubMenuId}"
+              class="sub-menu-item"
+            >{{ subMenu.name }}</button>
+          </div>
+        </div>
+      </nav>
+    </div>
+  </Teleport>
+
   <div class="mobile-menu-header" v-if="isMobileView">
     <button class="hamburger-btn" @click="drawerOpen = true" aria-label="打开菜单">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
       </svg>
     </button>
+    
     <div class="mobile-breadcrumb">
       <span class="mobile-breadcrumb-main" v-if="activeMenuObj">{{ activeMenuObj.name }}</span>
       <template v-if="activeSubMenuObj">
@@ -42,10 +60,10 @@
         <span class="mobile-breadcrumb-sub">{{ activeSubMenuObj.name }}</span>
       </template>
     </div>
+    
     <div class="hamburger-spacer"></div>
   </div>
 
-  <!-- ===== 移动端侧边抽屉 ===== -->
   <Teleport to="body">
     <div v-if="drawerVisible" class="drawer-backdrop" :class="drawerOpen ? 'backdrop-enter' : 'backdrop-exit'" @click="closeDrawer"></div>
     <div
@@ -65,21 +83,14 @@
       </div>
       <div class="drawer-body">
         <div v-for="menu in menus" :key="menu.id" class="drawer-menu-group">
-          <button
-            class="drawer-menu-item"
-            :class="{ active: menu.id === activeId }"
-            @click="handleDrawerMenuClick(menu)"
-          >
+          <button class="drawer-menu-item" :class="{ active: menu.id === activeId }" @click="handleDrawerMenuClick(menu)">
             <span>{{ menu.name }}</span>
             <svg v-if="menu.subMenus && menu.subMenus.length" class="drawer-chevron" :class="{ expanded: expandedId === menu.id }" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
           </button>
           <div v-if="menu.subMenus && menu.subMenus.length && expandedId === menu.id" class="drawer-sub-list">
-            <button
-              v-for="sub in menu.subMenus" :key="sub.id"
-              class="drawer-sub-item"
-              :class="{ active: sub.id === activeSubMenuId }"
-              @click="handleDrawerSubClick(menu, sub)"
-            >{{ sub.name }}</button>
+            <button v-for="sub in menu.subMenus" :key="sub.id" class="drawer-sub-item" :class="{ active: sub.id === activeSubMenuId }" @click="handleDrawerSubClick(menu, sub)">
+              {{ sub.name }}
+            </button>
           </div>
         </div>
       </div>
@@ -95,8 +106,35 @@ const props = defineProps({ menus: Array, activeId: Number, activeSubMenuId: Num
 const emit = defineEmits(['select']);
 
 const hoveredMenuId = ref(null);
+const menuBarRef = ref(null); 
+
+// 这里保留了修复闪烁Bug的JS防抖逻辑
+const isMenuExpanded = ref(false); 
+let expandTimeout = null; 
+
+function handleWrapperMouseEnter() {
+  clearTimeout(expandTimeout); 
+  isMenuExpanded.value = true; 
+}
+
+function handleWrapperMouseLeave() {
+  expandTimeout = setTimeout(() => {
+    isMenuExpanded.value = false;
+  }, 250); 
+}
+
 function showSubMenu(menuId) { hoveredMenuId.value = menuId; }
 function hideSubMenu(menuId) { setTimeout(() => { if (hoveredMenuId.value === menuId) hoveredMenuId.value = null; }, 100); }
+
+function handleWheel(e) {
+  if (menuBarRef.value) {
+    const el = menuBarRef.value;
+    if (el.scrollWidth > el.clientWidth) {
+      e.preventDefault(); 
+      el.scrollLeft += e.deltaY > 0 ? 50 : -50; 
+    }
+  }
+}
 
 const isMobileView = ref(false);
 function checkMobile() { isMobileView.value = window.innerWidth < 768; }
@@ -143,62 +181,227 @@ function onTouchEnd() {
 </script>
 
 <style scoped>
-/* ===== 桌面端菜单（原样保留） ===== */
-.menu-bar { display: flex; justify-content: center; flex-wrap: wrap; padding: 0 1rem; position: relative; }
-.menu-item { position: relative; }
-.menu-bar button { background: transparent; border: none; color: #fff; font-size: 16px; font-weight: 500; padding: 0.8rem 2rem; cursor: pointer; transition: all 0.3s ease; text-shadow: 0 1px 2px rgba(0,0,0,0.3); border-radius: 8px; position: relative; overflow: hidden; }
-.menu-bar button::before { content: ''; position: absolute; bottom: 0; left: 50%; width: 0; height: 2px; background: #399dff; transition: all 0.3s ease; transform: translateX(-50%); }
-.menu-bar button:hover { color: #399dff; transform: translateY(-1px); }
+/* =========================================
+   桌面端：悬浮菜单主框（原样保留）
+   ========================================= */
+.desktop-menu-wrapper {
+  position: fixed; 
+  top: 16px; 
+  left: 50%;
+  transform: translateX(-50%);
+  height: 40px; 
+  z-index: 9999; 
+  border: 1px solid rgba(255, 255, 255, 0.15); 
+  border-radius: 20px; 
+  display: flex;
+  align-items: center; 
+  justify-content: center;
+  max-width: 130px; 
+  transition: max-width 0.5s cubic-bezier(0.4, 0, 0.2, 1), border-radius 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.desktop-menu-wrapper::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: rgba(15, 20, 30, 0.45); 
+  backdrop-filter: blur(25px) saturate(130%); 
+  -webkit-backdrop-filter: blur(25px) saturate(130%);
+  transition: background 0.3s ease;
+}
+
+.desktop-menu-wrapper.is-expanded {
+  max-width: calc(100vw - 120px); 
+  border-radius: 12px; 
+}
+
+.desktop-menu-wrapper.is-expanded::before {
+  background: rgba(15, 20, 30, 0.45); 
+}
+
+.capsule-hint {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 14px;
+  font-weight: 500;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.desktop-menu-wrapper.is-expanded .capsule-hint {
+  opacity: 0;
+  transform: translateY(-8px);
+  pointer-events: none;
+}
+
+.menu-bar {
+  height: 40px;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  padding: 0 1rem;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none; 
+  padding-bottom: 500px;
+  margin-bottom: -500px;
+  pointer-events: none; 
+}
+.menu-bar::-webkit-scrollbar { display: none; }
+
+.desktop-menu-wrapper.is-expanded .menu-bar {
+  opacity: 1;
+  visibility: visible;
+  transition-delay: 0.1s; 
+}
+
+.menu-item { 
+  position: relative; 
+  height: 40px; 
+  display: flex;
+  align-items: center;
+  pointer-events: auto; 
+}
+
+.menu-bar button { background: transparent; border: none; color: #fff; font-size: 15px; font-weight: 500; padding: 0.4rem 1.2rem; cursor: pointer; transition: all 0.3s ease; border-radius: 8px; position: relative; }
+.menu-bar button::before { content: ''; position: absolute; bottom: 2px; left: 50%; width: 0; height: 2px; background: #399dff; transition: all 0.3s ease; transform: translateX(-50%); }
+.menu-bar button:hover { color: #399dff; }
 .menu-bar button.active { color: #399dff; }
-.menu-bar button.active::before { width: 60%; }
-.sub-menu { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); backdrop-filter: blur(8px); border-radius: 6px; min-width: 120px; opacity: 0; visibility: hidden; transition: all 0.2s ease; z-index: 1000; box-shadow: 0 4px 16px rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15); margin-top: -2px; }
-.sub-menu.show { opacity: 1; visibility: visible; transform: translateX(-50%) translateY(2px); }
-.sub-menu-item { display: block !important; width: 100% !important; text-align: center !important; padding: 0.4rem 1rem !important; border: none !important; background: transparent !important; color: #fff !important; font-size: 14px !important; cursor: pointer !important; transition: all 0.2s ease !important; border-radius: 0 !important; text-shadow: none !important; line-height: 1.5 !important; }
-.sub-menu-item:hover { background: rgba(57,157,255,0.25) !important; color: #399dff !important; transform: none !important; }
-.sub-menu-item.active { background: rgba(57,157,255,0.35) !important; color: #399dff !important; font-weight: 500 !important; }
-.sub-menu-item::before { display: none; }
+.menu-bar button.active::before { width: 40%; }
 
-/* ===== 移动端顶栏 ===== */
-.mobile-menu-header { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; width: 100%; box-sizing: border-box; }
-.hamburger-btn { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.1); backdrop-filter: blur(8px); color: #fff; border: none; cursor: pointer; -webkit-tap-highlight-color: transparent; }
-.hamburger-btn:active { background: rgba(255,255,255,0.2); }
+/* =========================================
+   👇 这里是为你搬运过来的：瞬间模糊且带有位移的子菜单样式 👇
+   ========================================= */
+.sub-menu { 
+  position: absolute; 
+  top: 100%; /* 使用你提供的定位 */
+  left: 50%; 
+  transform: translateX(-50%); 
+  
+  /* 最关键的：没有深色背景，直接上模糊滤镜，实现一出来就模糊 */
+  backdrop-filter: blur(8px); 
+  border-radius: 6px; 
+  min-width: 120px; 
+  opacity: 0; 
+  visibility: hidden; 
+  transition: all 0.2s ease; 
+  z-index: 1000; 
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4); 
+  border: 1px solid rgba(255,255,255,0.15); 
+  margin-top: -2px; 
+}
+
+.sub-menu.show { 
+  opacity: 1; 
+  visibility: visible; 
+  /* 带有极轻微的2px下移视觉效果，很高级的障眼法 */
+  transform: translateX(-50%) translateY(2px); 
+}
+
+.sub-menu-item { 
+  display: block !important; 
+  width: 100% !important; 
+  text-align: center !important; 
+  padding: 0.4rem 1rem !important; 
+  border: none !important; 
+  background: transparent !important; 
+  color: #fff !important; 
+  font-size: 14px !important; 
+  cursor: pointer !important; 
+  transition: all 0.2s ease !important; 
+  border-radius: 0 !important; 
+  text-shadow: none !important; 
+  line-height: 1.5 !important; 
+}
+
+.sub-menu-item:hover { 
+  background: rgba(57,157,255,0.25) !important; 
+  color: #399dff !important; 
+  transform: none !important; 
+}
+
+.sub-menu-item.active { 
+  background: rgba(57,157,255,0.35) !important; 
+  color: #399dff !important; 
+  font-weight: 500 !important; 
+}
+
+.sub-menu-item::before { 
+  display: none; 
+}
+
+/* 这是一个隐形的防手抖桥梁，保留它能让你鼠标移向子菜单时更稳定 */
+.sub-menu::before {
+  content: '';
+  position: absolute;
+  top: -15px; 
+  left: 0;
+  width: 100%;
+  height: 15px; 
+  background: transparent; 
+}
+/* =========================================
+   👆 子菜单样式结束 👆
+   ========================================= */
+
+/* =========================================
+   移动端：顶栏和极致毛玻璃抽屉（原样保留）
+   ========================================= */
+.mobile-menu-header { 
+  position: fixed; 
+  top: 16px; left: 0; width: 100%; z-index: 100;
+  display: flex; align-items: center; justify-content: space-between; padding: 0 12px; box-sizing: border-box; 
+}
+.hamburger-btn { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.1); backdrop-filter: blur(8px); color: #fff; border: 1px solid rgba(255,255,255,0.1); cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.mobile-breadcrumb { display: flex; align-items: center; gap: 6px; color: rgba(255,255,255,0.9); }
+.mobile-breadcrumb-main { font-size: 15px; font-weight: 600; }
+.mobile-breadcrumb-sep { font-size: 12px; color: rgba(255,255,255,0.4); }
+.mobile-breadcrumb-sub { font-size: 13px; color: rgba(255,255,255,0.7); }
 .hamburger-spacer { width: 40px; }
-.mobile-breadcrumb { display: flex; align-items: center; gap: 5px; color: rgba(255,255,255,0.8); }
-.mobile-breadcrumb-main { font-size: 14px; font-weight: 500; }
-.mobile-breadcrumb-sep { font-size: 11px; color: rgba(255,255,255,0.3); }
-.mobile-breadcrumb-sub { font-size: 12px; color: rgba(255,255,255,0.6); }
 
-/* ===== 抽屉蒙层 ===== */
-.drawer-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 999; backdrop-filter: blur(2px); }
-.backdrop-enter { animation: fadeInBg 0.25s ease forwards; }
-.backdrop-exit { animation: fadeOutBg 0.2s ease forwards; }
+.drawer-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 999; }
+.backdrop-enter { animation: fadeInBg 0.3s ease forwards; }
+.backdrop-exit { animation: fadeOutBg 0.3s ease forwards; }
 @keyframes fadeInBg { from { opacity: 0; } to { opacity: 1; } }
 @keyframes fadeOutBg { from { opacity: 1; } to { opacity: 0; } }
 
-/* ===== 抽屉面板：关键——不占满全屏，上下留安全区 ===== */
-.drawer-panel { position: fixed; left: 0; z-index: 1000; width: 72vw; max-width: 280px; top: 56px; bottom: max(80px, calc(60px + env(safe-area-inset-bottom, 20px))); background: rgba(15,17,26,0.96); backdrop-filter: blur(20px); box-shadow: 4px 0 24px rgba(0,0,0,0.4); display: flex; flex-direction: column; overflow: hidden; border-top-right-radius: 16px; border-bottom-right-radius: 16px; border-right: 1px solid rgba(255,255,255,0.05); }
-.drawer-enter { animation: slideInL 0.28s cubic-bezier(0.32,0.72,0,1) forwards; }
-.drawer-exit { animation: slideOutL 0.22s cubic-bezier(0.32,0.72,0,1) forwards; }
+.drawer-panel { 
+  position: fixed; left: 0; z-index: 1000; width: 75vw; max-width: 300px; 
+  top: 56px; bottom: max(80px, calc(60px + env(safe-area-inset-bottom, 20px))); 
+  border-top-right-radius: 16px; border-bottom-right-radius: 16px;
+  background: rgba(15, 20, 30, 0.35); 
+  backdrop-filter: blur(25px) saturate(130%); 
+  -webkit-backdrop-filter: blur(25px) saturate(130%);
+  border-right: 1px solid rgba(255, 255, 255, 0.15); 
+  box-shadow: 10px 0 30px rgba(0,0,0,0.2); 
+  display: flex; flex-direction: column; overflow: hidden; 
+}
+.drawer-enter { animation: slideInL 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
+.drawer-exit { animation: slideOutL 0.25s cubic-bezier(0.32, 0.72, 0, 1) forwards; }
 @keyframes slideInL { from { transform: translateX(-100%); } to { transform: translateX(0); } }
 @keyframes slideOutL { from { transform: translateX(0); } to { transform: translateX(-100%); } }
 
-.drawer-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.08); flex-shrink: 0; }
-.drawer-title { color: rgba(255,255,255,0.9); font-size: 14px; font-weight: 600; }
-.drawer-close-btn { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.5); background: transparent; border: none; cursor: pointer; -webkit-tap-highlight-color: transparent; }
-.drawer-close-btn:active { background: rgba(255,255,255,0.1); }
-.drawer-body { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 8px; }
-.drawer-menu-group { margin-bottom: 2px; }
-.drawer-menu-item { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 12px; border-radius: 12px; border: none; background: transparent; color: rgba(255,255,255,0.7); font-size: 14px; font-weight: 500; cursor: pointer; min-height: 44px; box-sizing: border-box; text-align: left; -webkit-tap-highlight-color: transparent; transition: background 0.15s; }
-.drawer-menu-item:active { background: rgba(255,255,255,0.08); }
-.drawer-menu-item.active { background: rgba(37,102,216,0.2); color: #fff; }
-.drawer-chevron { transition: transform 0.2s; color: rgba(255,255,255,0.3); flex-shrink: 0; }
-.drawer-chevron.expanded { transform: rotate(90deg); }
-.drawer-sub-list { margin-left: 12px; padding-left: 12px; border-left: 1px solid rgba(255,255,255,0.08); margin-top: 2px; margin-bottom: 4px; }
-.drawer-sub-item { width: 100%; padding: 10px 12px; border-radius: 8px; border: none; background: transparent; color: rgba(255,255,255,0.5); font-size: 12px; cursor: pointer; text-align: left; min-height: 40px; display: flex; align-items: center; box-sizing: border-box; -webkit-tap-highlight-color: transparent; transition: background 0.15s; }
-.drawer-sub-item:active { background: rgba(255,255,255,0.05); }
-.drawer-sub-item.active { background: rgba(37,102,216,0.15); color: #fff; }
-.drawer-footer { padding: 8px 16px; border-top: 1px solid rgba(255,255,255,0.05); flex-shrink: 0; text-align: center; color: rgba(255,255,255,0.2); font-size: 10px; }
+.drawer-header { display: flex; align-items: center; justify-content: space-between; padding: 20px 16px 12px; border-bottom: 1px solid rgba(255,255,255,0.1); flex-shrink: 0; }
+.drawer-title { color: #fff; font-size: 16px; font-weight: 600; letter-spacing: 1px; }
+.drawer-close-btn { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.7); background: rgba(255,255,255,0.05); border: none; cursor: pointer; }
+.drawer-body { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 12px; }
+.drawer-menu-item { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 14px; border-radius: 12px; border: none; background: transparent; color: rgba(255,255,255,0.85); font-size: 15px; font-weight: 500; cursor: pointer; text-align: left; transition: all 0.2s; }
+.drawer-menu-item:active { background: rgba(255,255,255,0.1); }
+.drawer-menu-item.active { background: rgba(255,255,255,0.15); color: #fff; border-left: 3px solid #399dff; border-radius: 4px 12px 12px 4px; }
+.drawer-chevron { transition: transform 0.2s; color: rgba(255,255,255,0.5); }
+.drawer-chevron.expanded { transform: rotate(90deg); color: #fff; }
+.drawer-sub-list { margin-left: 14px; padding-left: 14px; border-left: 1px solid rgba(255,255,255,0.15); margin-top: 4px; margin-bottom: 8px; }
+.drawer-sub-item { width: 100%; padding: 12px 14px; border-radius: 10px; border: none; background: transparent; color: rgba(255,255,255,0.65); font-size: 13px; cursor: pointer; text-align: left; transition: all 0.2s; }
+.drawer-sub-item.active { background: rgba(255,255,255,0.1); color: #fff; font-weight: 500; }
+.drawer-footer { padding: 12px 16px; border-top: 1px solid rgba(255,255,255,0.1); text-align: center; color: rgba(255,255,255,0.4); font-size: 12px; }
 
 @media (min-width: 768px) { .mobile-menu-header { display: none; } }
-@media (max-width: 767px) { .menu-bar { display: none; } }
+@media (max-width: 767px) { .desktop-menu-wrapper { display: none; } }
 </style>
