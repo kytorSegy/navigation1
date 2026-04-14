@@ -99,7 +99,7 @@ const emit = defineEmits(['select']);
 
 const hoveredMenuId = ref(null);
 function showSubMenu(menuId) { hoveredMenuId.value = menuId; }
-// 【修改】因为有了 CSS 悬停桥，我们将 JS 延迟恢复到原生干脆利落的 100ms
+// 保持 100ms 延迟，配合下面的纯 CSS 悬停桥，操作非常干脆
 function hideSubMenu(menuId) { setTimeout(() => { if (hoveredMenuId.value === menuId) hoveredMenuId.value = null; }, 100); }
 
 const isMobileView = ref(false);
@@ -148,17 +148,24 @@ function onTouchEnd() {
 
 <style scoped>
 /* =========================================
-   桌面端：悬浮胶囊 CSS 动画
+   桌面端：悬浮菜单主框
    ========================================= */
 .desktop-menu-wrapper {
-  position: relative; 
-  margin: 0 auto 24px auto; 
-  height: 48px;
+  /* 【修改1：固定悬浮居中】将定位改为 fixed，并设置距离顶部 16px */
+  position: fixed; 
+  top: 16px; 
+  /* 使用 left 50% 和 transform 让其永远在屏幕正中间 */
+  left: 50%;
+  transform: translateX(-50%);
+  
+  /* 【修改2：高度调整】将高度从 48px 改为 40px，与两侧按钮完美对齐 */
+  height: 40px; 
+  
   background: rgba(15, 20, 30, 0.35); 
   backdrop-filter: blur(25px) saturate(130%); 
   -webkit-backdrop-filter: blur(25px) saturate(130%);
   border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 24px;
+  border-radius: 20px; /* 为了适应 40px 高度，圆角稍微缩小一点让视觉更舒适 */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -205,20 +212,45 @@ function onTouchEnd() {
 }
 
 .menu-item { position: relative; }
-.menu-bar button { background: transparent; border: none; color: #fff; font-size: 15px; font-weight: 500; padding: 0.6rem 1.2rem; cursor: pointer; transition: all 0.3s ease; border-radius: 8px; position: relative; }
-.menu-bar button::before { content: ''; position: absolute; bottom: 4px; left: 50%; width: 0; height: 2px; background: #399dff; transition: all 0.3s ease; transform: translateX(-50%); }
+/* 因为主高度变成了 40px，稍微缩小按钮的上下 padding，让它居中不拥挤 */
+.menu-bar button { background: transparent; border: none; color: #fff; font-size: 15px; font-weight: 500; padding: 0.4rem 1.2rem; cursor: pointer; transition: all 0.3s ease; border-radius: 8px; position: relative; }
+.menu-bar button::before { content: ''; position: absolute; bottom: 2px; left: 50%; width: 0; height: 2px; background: #399dff; transition: all 0.3s ease; transform: translateX(-50%); }
 .menu-bar button:hover { color: #399dff; }
 .menu-bar button.active { color: #399dff; }
 .menu-bar button.active::before { width: 40%; }
 
-.sub-menu { position: absolute; top: calc(100% + 5px); left: 50%; transform: translateX(-50%); backdrop-filter: blur(12px); border-radius: 10px; min-width: 110px; opacity: 0; visibility: hidden; transition: all 0.2s ease; z-index: 1000; box-shadow: 0 8px 24px rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); background: rgba(20,25,35,0.85); padding: 4px 0; }
+/* =========================================
+   【修改3：子菜单应用全局同款毛玻璃】
+   ========================================= */
+.sub-menu { 
+  position: absolute; 
+  top: calc(100% + 5px); 
+  left: 50%; 
+  transform: translateX(-50%); 
+  
+  /* 这里完全替换为你主菜单的毛玻璃参数 */
+  background: rgba(15, 20, 30, 0.35); 
+  backdrop-filter: blur(25px) saturate(130%); 
+  -webkit-backdrop-filter: blur(25px) saturate(130%);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  
+  border-radius: 10px; 
+  min-width: 110px; 
+  opacity: 0; 
+  visibility: hidden; 
+  transition: all 0.2s ease; 
+  z-index: 1000; 
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3); 
+  padding: 4px 0; 
+}
+
 .sub-menu.show { opacity: 1; visibility: visible; transform: translateX(-50%) translateY(0); }
 .sub-menu-item { display: block !important; width: 100% !important; text-align: center !important; padding: 0.6rem 1rem !important; border: none !important; color: #eee !important; font-size: 13px !important; transition: all 0.2s ease !important; background: transparent !important; }
 .sub-menu-item:hover { background: rgba(255,255,255,0.1) !important; color: #fff !important; }
 .sub-menu-item.active { background: rgba(57,157,255,0.2) !important; color: #399dff !important; }
 
 /* =========================================
-   【新增】CSS 悬停桥（Hover Bridge）
+   CSS 悬停桥（Hover Bridge）
    ========================================= */
 .sub-menu::before {
   content: '';
