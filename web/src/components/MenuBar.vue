@@ -161,7 +161,7 @@ function onTouchEnd() {
 
 <style scoped>
 /* =========================================
-   桌面端：悬浮菜单主框 (保留最新版功能)
+   桌面端：悬浮菜单主框
    ========================================= */
 .desktop-menu-wrapper {
   position: fixed; 
@@ -243,80 +243,69 @@ function onTouchEnd() {
 .menu-bar button.active::before { width: 40%; }
 
 /* =========================================
-   子菜单 (【精准替换】完全恢复为你提供的原始样式)
+   子菜单 (【黑科技缝合】：T字型流体连接)
    ========================================= */
 .sub-menu { 
   position: absolute; 
-  top: 100%; 
+  /* 👈【魔法1】：往上挪 1px，精准压在主菜单的底部白边上 */
+  top: calc(100% - 1px); 
   left: 50%; 
   transform: translateX(-50%); 
   
-  /* 原版的模糊效果和阴影，没有额外底色 */
-  backdrop-filter: blur(8px); 
-  -webkit-backdrop-filter: blur(8px); 
-  border-radius: 6px; 
-  min-width: 120px; 
+  /* 👈【魔法2】：色彩和材质必须和主菜单 100% 一模一样，达到无缝融合 */
+  background: rgba(15, 20, 30, 0.45); 
+  backdrop-filter: blur(25px) saturate(130%); 
+  -webkit-backdrop-filter: blur(25px) saturate(130%);
+  
+  /* 👈【魔法3】：砍掉上边框，只保留左、右、下边框 */
+  border-left: 1px solid rgba(255, 255, 255, 0.15);
+  border-right: 1px solid rgba(255, 255, 255, 0.15);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+  border-top: none; 
+  
+  /* 👈【魔法4】：上面是直角（为了贴合主菜单），下面保留圆角 */
+  border-radius: 0 0 12px 12px; 
+  
+  min-width: 110px; 
   opacity: 0; 
   visibility: hidden; 
   transition: all 0.2s ease; 
   z-index: 1000; 
-  box-shadow: 0 4px 16px rgba(0,0,0,0.4); 
-  border: 1px solid rgba(255,255,255,0.15); 
-  margin-top: -2px; 
-  background: transparent; 
-  padding: 0;
+  /* 阴影只往下打，防止上面渗出黑边 */
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3); 
+  padding: 4px 0; 
 }
 
 .sub-menu.show { 
   opacity: 1; 
   visibility: visible; 
-  transform: translateX(-50%) translateY(2px); 
+  /* 展开时不产生位移，死死贴住！ */
+  transform: translateX(-50%) translateY(0); 
 }
 
 .sub-menu-item { 
   display: block !important; 
   width: 100% !important; 
   text-align: center !important; 
-  padding: 0.4rem 1rem !important; 
+  padding: 0.6rem 1rem !important; 
   border: none !important; 
   background: transparent !important; 
-  color: #fff !important; 
-  font-size: 14px !important; 
+  color: #eee !important; 
+  font-size: 13px !important; 
   cursor: pointer !important; 
   transition: all 0.2s ease !important; 
   border-radius: 0 !important; 
-  text-shadow: none !important; 
-  line-height: 1.5 !important; 
 }
 
-/* 原版的淡蓝色方块悬停效果 */
 .sub-menu-item:hover { 
   background: rgba(57,157,255,0.25) !important; 
   color: #399dff !important; 
-  transform: none !important; 
 }
 
 .sub-menu-item.active { 
   background: rgba(57,157,255,0.35) !important; 
   color: #399dff !important; 
   font-weight: 500 !important; 
-}
-
-.sub-menu-item::before { 
-  display: none; 
-}
-
-/* =========================================
-   CSS 悬停桥（Hover Bridge，保留连接效果）
-   ========================================= */
-.sub-menu::before {
-  content: '';
-  position: absolute;
-  top: -15px; 
-  left: 0;
-  width: 100%;
-  height: 15px; 
-  background: transparent; 
 }
 
 /* =========================================
