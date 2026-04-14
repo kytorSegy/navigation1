@@ -1,42 +1,44 @@
 <template>
-  <div class="desktop-menu-wrapper" v-if="!isMobileView">
-    
-    <div class="capsule-hint">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;">
-        <line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line>
-      </svg>
-      菜单栏
-    </div>
+  <Teleport to="body">
+    <div class="desktop-menu-wrapper" v-if="!isMobileView">
+      
+      <div class="capsule-hint">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;">
+          <line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
+        菜单栏
+      </div>
 
-    <nav class="menu-bar">
-      <div
-        v-for="menu in menus"
-        :key="menu.id"
-        class="menu-item"
-        @mouseenter="showSubMenu(menu.id)"
-        @mouseleave="hideSubMenu(menu.id)"
-      >
-        <button
-          @click="$emit('select', menu)"
-          :class="{active: menu.id === activeId}"
-        >{{ menu.name }}</button>
-        
+      <nav class="menu-bar" ref="menuBarRef" @wheel="handleWheel">
         <div
-          v-if="menu.subMenus && menu.subMenus.length > 0"
-          class="sub-menu"
-          :class="{ 'show': hoveredMenuId === menu.id }"
+          v-for="menu in menus"
+          :key="menu.id"
+          class="menu-item"
+          @mouseenter="showSubMenu(menu.id)"
+          @mouseleave="hideSubMenu(menu.id)"
         >
           <button
-            v-for="subMenu in menu.subMenus"
-            :key="subMenu.id"
-            @click="$emit('select', subMenu, menu)"
-            :class="{active: subMenu.id === activeSubMenuId}"
-            class="sub-menu-item"
-          >{{ subMenu.name }}</button>
+            @click="$emit('select', menu)"
+            :class="{active: menu.id === activeId}"
+          >{{ menu.name }}</button>
+          
+          <div
+            v-if="menu.subMenus && menu.subMenus.length > 0"
+            class="sub-menu"
+            :class="{ 'show': hoveredMenuId === menu.id }"
+          >
+            <button
+              v-for="subMenu in menu.subMenus"
+              :key="subMenu.id"
+              @click="$emit('select', subMenu, menu)"
+              :class="{active: subMenu.id === activeSubMenuId}"
+              class="sub-menu-item"
+            >{{ subMenu.name }}</button>
+          </div>
         </div>
-      </div>
-    </nav>
-  </div>
+      </nav>
+    </div>
+  </Teleport>
 
   <div class="mobile-menu-header" v-if="isMobileView">
     <button class="hamburger-btn" @click="drawerOpen = true" aria-label="打开菜单">
@@ -98,9 +100,23 @@ const props = defineProps({ menus: Array, activeId: Number, activeSubMenuId: Num
 const emit = defineEmits(['select']);
 
 const hoveredMenuId = ref(null);
+const menuBarRef = ref(null); // 用于获取菜单栏的 DOM 节点
+
 function showSubMenu(menuId) { hoveredMenuId.value = menuId; }
-// 保持 100ms 延迟，配合下面的纯 CSS 悬停桥，操作干脆
 function hideSubMenu(menuId) { setTimeout(() => { if (hoveredMenuId.value === menuId) hoveredMenuId.value = null; }, 100); }
+
+// 【新增核心功能】：免 Shift 鼠标滚轮平滑横向滚动
+function handleWheel(e) {
+  if (menuBarRef.value) {
+    const el = menuBarRef.value;
+    // 判断菜单的实际内容宽度是否大于可见宽度 (只有超出时才需要滑动)
+    if (el.scrollWidth > el.clientWidth) {
+      e.preventDefault(); // 阻止页面默认的上下滚动
+      // 根据滚轮方向调整横向滚动条，数值 50 控制滑动的灵敏度
+      el.scrollLeft += e.deltaY > 0 ? 50 : -50; 
+    }
+  }
+}
 
 const isMobileView = ref(false);
 function checkMobile() { isMobileView.value = window.innerWidth < 768; }
@@ -156,17 +172,17 @@ function onTouchEnd() {
   left: 50%;
   transform: translateX(-50%);
   height: 40px; 
+  z-index: 9999; /* 最高层级，彻底告别被任何按钮遮挡！ */
   
-  /* 未展开时的背景（稍微透一点，保持灵动感） */
+  /* 未展开时的背景质感 */
   background: rgba(15, 20, 30, 0.45); 
   backdrop-filter: blur(25px) saturate(130%); 
   -webkit-backdrop-filter: blur(25px) saturate(130%);
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 20px; 
   display: flex;
-  align-items: center;
+  align-items: center; 
   justify-content: center;
-  z-index: 1000;
   
   max-width: 130px; 
   transition: max-width 0.5s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s ease, border-radius 0.3s ease;
@@ -174,11 +190,11 @@ function onTouchEnd() {
 }
 
 .desktop-menu-wrapper:hover {
-  /* 【修改点】：限制最大宽度为屏幕宽度减去两边间距，防止放大后超出屏幕 */
-  max-width: calc(100vw - 32px); 
+  /* 【修改】：放大页面时，永远保留左右 60px 给壁纸按钮，不顶出屏幕 */
+  max-width: calc(100vw - 120px); 
   border-radius: 12px; 
-  /* 【修改点】：展开时加深背景颜色，提升文字对比度，不再觉得太透 */
-  background: rgba(15, 20, 30, 0.65); 
+  /* 【统一】：更加扎实的磨砂质感 */
+  background: rgba(20, 25, 35, 0.75); 
 }
 
 .capsule-hint {
@@ -197,6 +213,7 @@ function onTouchEnd() {
 }
 
 .menu-bar {
+  height: 40px;
   display: flex;
   align-items: center;
   white-space: nowrap;
@@ -205,18 +222,16 @@ function onTouchEnd() {
   visibility: hidden;
   transition: opacity 0.3s ease, visibility 0.3s ease;
   
-  /* 【新增】：开启内部水平滑动，并且隐藏底部的滚动条，美观又实用 */
-  max-width: 100%;
+  /* 【防裁剪黑科技】：让横向能够滚动，同时用 500px 隐形 padding 确保子菜单不被切掉 */
   overflow-x: auto;
   overflow-y: hidden;
-  scrollbar-width: none; /* 适配 Firefox 隐藏滚动条 */
-  -ms-overflow-style: none; /* 适配 IE/Edge 隐藏滚动条 */
+  scrollbar-width: none; /* 隐藏滚动条 Firefox */
+  padding-bottom: 500px;
+  margin-bottom: -500px;
+  pointer-events: none; /* 隐形 padding 区域不阻挡鼠标点击网页底部的内容 */
 }
-
-/* 适配 Chrome/Safari/Edge 隐藏滚动条 */
-.menu-bar::-webkit-scrollbar {
-  display: none; 
-}
+/* 隐藏滚动条 Chrome/Safari */
+.menu-bar::-webkit-scrollbar { display: none; }
 
 .desktop-menu-wrapper:hover .menu-bar {
   opacity: 1;
@@ -224,7 +239,14 @@ function onTouchEnd() {
   transition-delay: 0.1s; 
 }
 
-.menu-item { position: relative; }
+.menu-item { 
+  position: relative; 
+  height: 40px; /* 强制高度，配合 flex center 完美对齐文字 */
+  display: flex;
+  align-items: center;
+  pointer-events: auto; /* 恢复主菜单项的鼠标事件 */
+}
+
 .menu-bar button { background: transparent; border: none; color: #fff; font-size: 15px; font-weight: 500; padding: 0.4rem 1.2rem; cursor: pointer; transition: all 0.3s ease; border-radius: 8px; position: relative; }
 .menu-bar button::before { content: ''; position: absolute; bottom: 2px; left: 50%; width: 0; height: 2px; background: #399dff; transition: all 0.3s ease; transform: translateX(-50%); }
 .menu-bar button:hover { color: #399dff; }
@@ -232,7 +254,7 @@ function onTouchEnd() {
 .menu-bar button.active::before { width: 40%; }
 
 /* =========================================
-   子菜单 (统一毛玻璃，不那么透)
+   子菜单 (【统一】完美的扎实毛玻璃)
    ========================================= */
 .sub-menu { 
   position: absolute; 
@@ -240,8 +262,8 @@ function onTouchEnd() {
   left: 50%; 
   transform: translateX(-50%); 
   
-  /* 【修改点】：这里的背景与上面 desktop-menu-wrapper:hover 保持 100% 一致！*/
-  background: rgba(15, 20, 30, 0.65); 
+  /* 完全对标 .desktop-menu-wrapper:hover 的色彩参数 */
+  background: rgba(20, 25, 35, 0.75); 
   backdrop-filter: blur(25px) saturate(130%); 
   -webkit-backdrop-filter: blur(25px) saturate(130%);
   border: 1px solid rgba(255, 255, 255, 0.15);
