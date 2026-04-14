@@ -323,7 +323,7 @@ function handleLogoError(e){e.target.style.display='none';if(e.target.nextElemen
 @media(pointer:fine){.theme-toggle-btn:hover{background:rgba(255,255,255,0.25);transform:rotate(15deg) scale(1.1)}}
 
 /* ==============================================
-   【修改】Logo 的 CSS 定位
+   【修改】Logo 的 CSS 定位：桌面端移至左上角
    ============================================== */
 .home-logo {
   height: 48px; 
@@ -336,12 +336,11 @@ function handleLogoError(e){e.target.style.display='none';if(e.target.nextElemen
 }
 @media(min-width: 768px){
   .home-logo { 
-    /* 桌面端特供：把Logo固定到屏幕最顶端！ */
     position: fixed;
-    top: 24px;
-    left: 50%;
-    transform: translateX(-50%);
-    height: 60px;
+    top: 16px;
+    left: 16px;
+    transform: none;
+    height: 40px;
     margin-bottom: 0;
     z-index: 100;
   }
