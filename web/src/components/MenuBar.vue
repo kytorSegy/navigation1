@@ -161,7 +161,7 @@ function onTouchEnd() {
 
 <style scoped>
 /* =========================================
-   桌面端：悬浮菜单主框
+   桌面端：悬浮菜单主框 (保留最新版功能)
    ========================================= */
 .desktop-menu-wrapper {
   position: fixed; 
@@ -170,23 +170,14 @@ function onTouchEnd() {
   transform: translateX(-50%);
   height: 40px; 
   z-index: 9999; 
-  
-  /* 👈 【自定义修改点 1：未展开时的菜单颜色和透明度】
-     前面的 15,20,30 代表 RGB 颜色(偏深黑蓝)，0.45 代表透明度(范围 0~1)。
-     越接近 0 越透，越接近 1 越不透。 */
   background: rgba(15, 20, 30, 0.45); 
-  
-  /* 👈 【自定义修改点 2：毛玻璃的模糊程度】
-     blur(25px) 里面的 25 越大，背后的画面越模糊。 */
   backdrop-filter: blur(25px) saturate(130%); 
   -webkit-backdrop-filter: blur(25px) saturate(130%);
-  
-  border: 1px solid rgba(255, 255, 255, 0.15); /* 边框的透明度 */
+  border: 1px solid rgba(255, 255, 255, 0.15); 
   border-radius: 20px; 
   display: flex;
   align-items: center; 
   justify-content: center;
-  
   max-width: 130px; 
   transition: max-width 0.5s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s ease, border-radius 0.3s ease;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
@@ -195,9 +186,6 @@ function onTouchEnd() {
 .desktop-menu-wrapper:hover {
   max-width: calc(100vw - 120px); 
   border-radius: 12px; 
-  
-  /* 👈 【自定义修改点 3：鼠标悬停展开时的菜单颜色和透明度】
-     这里现在是 0.75，相对不透。如果你希望它和不悬停时一样透，把它改成跟上面一样的 0.45 即可。*/
   background: rgba(15, 20, 30, 0.45); 
 }
 
@@ -225,7 +213,6 @@ function onTouchEnd() {
   opacity: 0;
   visibility: hidden;
   transition: opacity 0.3s ease, visibility 0.3s ease;
-  
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: none; 
@@ -256,40 +243,71 @@ function onTouchEnd() {
 .menu-bar button.active::before { width: 40%; }
 
 /* =========================================
-   子菜单
+   子菜单 (【精准替换】完全恢复为你提供的原始样式)
    ========================================= */
 .sub-menu { 
   position: absolute; 
-  top: calc(100% + 5px); 
+  top: 100%; 
   left: 50%; 
   transform: translateX(-50%); 
   
-  /* 👈 【自定义修改点 4：子菜单的颜色和透明度】
-     这决定了下拉出来的框的颜色。为了视觉统一，建议把这个参数保持和上面的“修改点 3”完全一样！*/
-  background: rgba(15, 20, 30, 0.45); 
-  
-  /* 👈 【自定义修改点 5：子菜单的毛玻璃模糊程度】 */
-  backdrop-filter: blur(50px) saturate(130%); 
-  -webkit-backdrop-filter: blur(50px) saturate(130%);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  
-  border-radius: 10px; 
-  min-width: 110px; 
+  /* 原版的模糊效果和阴影，没有额外底色 */
+  backdrop-filter: blur(8px); 
+  -webkit-backdrop-filter: blur(8px); 
+  border-radius: 6px; 
+  min-width: 120px; 
   opacity: 0; 
   visibility: hidden; 
   transition: all 0.2s ease; 
   z-index: 1000; 
-  box-shadow: 0 8px 24px rgba(0,0,0,0.3); 
-  padding: 4px 0; 
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4); 
+  border: 1px solid rgba(255,255,255,0.15); 
+  margin-top: -2px; 
+  background: transparent; 
+  padding: 0;
 }
 
-.sub-menu.show { opacity: 1; visibility: visible; transform: translateX(-50%) translateY(0); }
-.sub-menu-item { display: block !important; width: 100% !important; text-align: center !important; padding: 0.6rem 1rem !important; border: none !important; color: #eee !important; font-size: 13px !important; transition: all 0.2s ease !important; background: transparent !important; }
-.sub-menu-item:hover { background: rgba(255,255,255,0.1) !important; color: #fff !important; }
-.sub-menu-item.active { background: rgba(57,157,255,0.2) !important; color: #399dff !important; }
+.sub-menu.show { 
+  opacity: 1; 
+  visibility: visible; 
+  transform: translateX(-50%) translateY(2px); 
+}
+
+.sub-menu-item { 
+  display: block !important; 
+  width: 100% !important; 
+  text-align: center !important; 
+  padding: 0.4rem 1rem !important; 
+  border: none !important; 
+  background: transparent !important; 
+  color: #fff !important; 
+  font-size: 14px !important; 
+  cursor: pointer !important; 
+  transition: all 0.2s ease !important; 
+  border-radius: 0 !important; 
+  text-shadow: none !important; 
+  line-height: 1.5 !important; 
+}
+
+/* 原版的淡蓝色方块悬停效果 */
+.sub-menu-item:hover { 
+  background: rgba(57,157,255,0.25) !important; 
+  color: #399dff !important; 
+  transform: none !important; 
+}
+
+.sub-menu-item.active { 
+  background: rgba(57,157,255,0.35) !important; 
+  color: #399dff !important; 
+  font-weight: 500 !important; 
+}
+
+.sub-menu-item::before { 
+  display: none; 
+}
 
 /* =========================================
-   CSS 悬停桥（Hover Bridge）
+   CSS 悬停桥（Hover Bridge，保留连接效果）
    ========================================= */
 .sub-menu::before {
   content: '';
