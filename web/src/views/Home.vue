@@ -12,11 +12,11 @@
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path></svg>
       </button>
       
-      <div class="menu-bar-fixed"><MenuBar :menus="menus" :activeId="activeMenu?.id" :activeSubMenuId="activeSubMenu?.id" @select="selectMenu" /></div>
-      
       <div class="search-section">
         
         <img :src="currentLogoSrc" alt="八方来财 Logo" class="home-logo" />
+
+        <MenuBar :menus="menus" :activeId="activeMenu?.id" :activeSubMenuId="activeSubMenu?.id" @select="selectMenu" />
 
         <div class="search-box-wrapper">
           <div class="search-engine-select"><button v-for="engine in searchEngines" :key="engine.name" :class="['engine-btn',{active:selectedEngine.name===engine.name}]" @click="selectEngine(engine)">{{engine.label}}</button></div>
@@ -27,7 +27,6 @@
           </div>
         </div>
       </div>
-      
       <div v-if="leftAds.length" class="ad-space-fixed left-ad-fixed"><a v-for="ad in leftAds" :key="ad.id" :href="ad.url" target="_blank"><img :src="ad.img" alt="" /></a></div>
       <div v-if="rightAds.length" class="ad-space-fixed right-ad-fixed"><a v-for="ad in rightAds" :key="ad.id" :href="ad.url" target="_blank"><img :src="ad.img" alt="" /></a></div>
       <CardGrid :cards="filteredCards"/>
@@ -106,37 +105,29 @@ const isDragOver = ref(false); const localFileName = ref('');
 const fileInputRef = ref(null); const formatError = ref('');
 const transparentPixel = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
 
-// ==========================================
-// 【核心功能：背景明暗检测与 Logo 切换】
-// ==========================================
-const logoType = ref('white'); // 默认使用白色 Logo (适合深色背景)
+const logoType = ref('white'); 
 const currentLogoSrc = computed(() => `/${logoType.value}.png`);
 
-// 提取图片或视频的像素来计算亮度
 function analyzeBrightness(sourceElement) {
   try {
     const canvas = document.createElement('canvas');
     canvas.width = 64; 
     canvas.height = 64;
     const ctx = canvas.getContext('2d');
-    // 把画面画在小画布上
     ctx.drawImage(sourceElement, 0, 0, 64, 64);
     
-    // 获取颜色数据
     const data = ctx.getImageData(0, 0, 64, 64).data;
     let r = 0, g = 0, b = 0, count = 0;
     
     for(let i = 0; i < data.length; i += 4) {
-      if(data[i+3] > 0) { // 忽略透明像素
+      if(data[i+3] > 0) {
         r += data[i]; g += data[i+1]; b += data[i+2]; 
         count++;
       }
     }
     
     if(count > 0) {
-      // 计算平均亮度 (0-255)
       const avgBrightness = (r * 0.299 + g * 0.587 + b * 0.114) / count;
-      // 阈值设为 130：如果背景偏白(>130)，就用黑色Logo；如果偏黑(<130)，用白色Logo。
       logoType.value = avgBrightness > 130 ? 'black' : 'white';
     }
   } catch(e) {
@@ -145,9 +136,6 @@ function analyzeBrightness(sourceElement) {
   }
 }
 
-// ==========================================
-// 视频与背景处理逻辑
-// ==========================================
 function isVideoType(url, bgType) {
   if (bgType==='video') return true; if (bgType==='image') return false; if (!url) return false;
   if (url.startsWith('data:video/')) return true;
@@ -164,7 +152,6 @@ function onVideoLoadedData() {
     isBgLoaded.value=true;
     attemptPlay();
   }
-  // 视频加载出画面后，分析第一帧的亮度
   setTimeout(() => { if(bgVideoRef.value) analyzeBrightness(bgVideoRef.value); }, 200);
 }
 function onVideoError() { videoFailed.value=true; isBgLoaded.value=true; }
@@ -180,12 +167,11 @@ function setupTouchPlay() {
   document.addEventListener('touchstart',h,{once:true,passive:true}); document.addEventListener('click',h,{once:true});
 }
 
-// 监听背景地址变化，如果是图片则进行亮度分析
 watch(customBackground, (newUrl) => {
   videoFailed.value=false; needsInteraction.value=false;
   if(!newUrl){
     isBgLoaded.value=true; 
-    logoType.value = 'white'; // 没有背景时，默认界面较暗，用白字
+    logoType.value = 'white'; 
     return;
   }
   
@@ -197,7 +183,7 @@ watch(customBackground, (newUrl) => {
         bgImageRef.value.src = newUrl;
         bgImageRef.value.onload = () => {
           isBgLoaded.value=true;
-          analyzeBrightness(bgImageRef.value); // 图片加载完成，开始分析颜色！
+          analyzeBrightness(bgImageRef.value); 
         };
         bgImageRef.value.onerror = () => {
           isBgLoaded.value=true;
@@ -208,7 +194,6 @@ watch(customBackground, (newUrl) => {
   }
 }, {immediate:true});
 
-// 原有的数据请求与交互逻辑保持不变
 const ALLOWED_TYPES = /^(image\/(jpeg|png|gif|webp|bmp|svg\+xml)|video\/(mp4|webm|ogg|quicktime|x-m4v|x-msvideo|x-matroska))$/;
 const ALLOWED_EXTS = /\.(jpg|jpeg|png|gif|webp|bmp|svg|mp4|webm|ogg|mov|m4v|avi|mkv)$/i;
 
@@ -326,29 +311,40 @@ function handleLogoError(e){e.target.style.display='none';if(e.target.nextElemen
 .bg-image{position:fixed;inset:0;background-size:cover;background-position:center;background-repeat:no-repeat;z-index:0}
 .bg-video{position:fixed;top:0;left:0;width:100vw;height:100vh;height:100dvh;object-fit:cover;z-index:0;-webkit-transform:translateZ(0);transform:translateZ(0)}
 .home-container::before{content:'';position:fixed;inset:0;background:rgba(0,0,0,0.3);z-index:1}
+
+/* 【修复】考虑到手机端的汉堡按钮固定在顶部，我们给内容增加一点上内边距防遮挡 */
 .content-overlay{position:relative;z-index:2;flex:1;display:flex;flex-direction:column;padding-top:40px}
+@media(max-width:767px){.content-overlay{padding-top:60px}} 
+
 .tap-to-play-hint{position:fixed;bottom:120px;left:50%;transform:translateX(-50%);z-index:3;background:rgba(0,0,0,0.5);backdrop-filter:blur(8px);color:#fff;font-size:12px;padding:8px 16px;border-radius:20px;animation:pulse 2s ease-in-out infinite;cursor:pointer}
 @keyframes pulse{0%,100%{opacity:.8}50%{opacity:1}}
 .theme-toggle-btn{position:fixed;top:16px;right:16px;z-index:101;background:rgba(255,255,255,0.15);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.3);border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center;color:#fff;cursor:pointer;transition:all .3s;box-shadow:0 4px 12px rgba(0,0,0,0.1)}
 .theme-toggle-btn:active{background:rgba(255,255,255,0.25);transform:scale(0.95)}
 @media(pointer:fine){.theme-toggle-btn:hover{background:rgba(255,255,255,0.25);transform:rotate(15deg) scale(1.1)}}
-.menu-bar-fixed{position:fixed;top:0;left:0;width:100vw;z-index:100}
-@media(max-width:767px){.menu-bar-fixed{position:static;width:100%}.content-overlay{padding-top:0}}
 
 /* ==============================================
-   【新增】Logo 的 CSS 样式
+   【修改】Logo 的 CSS 定位
    ============================================== */
 .home-logo {
-  height: 64px; /* Logo高度，如果觉得太大可以改成 50px 或 60px */
-  margin-bottom: 24px;
+  height: 48px; 
+  margin-bottom: 16px;
+  position: relative; 
+  z-index: 10;
   object-fit: contain;
-  /* 增加丝滑的淡入淡出动画，让颜色切换时非常顺畅 */
   transition: opacity 0.5s ease;
-  /* 增加轻微的阴影，让 Logo 在任何背景下都更立体清晰 */
   filter: drop-shadow(0 4px 8px rgba(0,0,0,0.25)); 
 }
-@media(max-width:767px){
-  .home-logo { height: 48px; margin-bottom: 16px; }
+@media(min-width: 768px){
+  .home-logo { 
+    /* 桌面端特供：把Logo固定到屏幕最顶端！ */
+    position: fixed;
+    top: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    height: 60px;
+    margin-bottom: 0;
+    z-index: 100;
+  }
 }
 
 .search-engine-select{display:flex;align-items:center;padding-bottom:.3rem;gap:3px;overflow-x:auto}
