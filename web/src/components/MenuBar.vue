@@ -100,19 +100,16 @@ const props = defineProps({ menus: Array, activeId: Number, activeSubMenuId: Num
 const emit = defineEmits(['select']);
 
 const hoveredMenuId = ref(null);
-const menuBarRef = ref(null); // 用于获取菜单栏的 DOM 节点
+const menuBarRef = ref(null); 
 
 function showSubMenu(menuId) { hoveredMenuId.value = menuId; }
 function hideSubMenu(menuId) { setTimeout(() => { if (hoveredMenuId.value === menuId) hoveredMenuId.value = null; }, 100); }
 
-// 【新增核心功能】：免 Shift 鼠标滚轮平滑横向滚动
 function handleWheel(e) {
   if (menuBarRef.value) {
     const el = menuBarRef.value;
-    // 判断菜单的实际内容宽度是否大于可见宽度 (只有超出时才需要滑动)
     if (el.scrollWidth > el.clientWidth) {
-      e.preventDefault(); // 阻止页面默认的上下滚动
-      // 根据滚轮方向调整横向滚动条，数值 50 控制滑动的灵敏度
+      e.preventDefault(); 
       el.scrollLeft += e.deltaY > 0 ? 50 : -50; 
     }
   }
@@ -172,13 +169,19 @@ function onTouchEnd() {
   left: 50%;
   transform: translateX(-50%);
   height: 40px; 
-  z-index: 9999; /* 最高层级，彻底告别被任何按钮遮挡！ */
+  z-index: 9999; 
   
-  /* 未展开时的背景质感 */
+  /* 👈 【自定义修改点 1：未展开时的菜单颜色和透明度】
+     前面的 15,20,30 代表 RGB 颜色(偏深黑蓝)，0.45 代表透明度(范围 0~1)。
+     越接近 0 越透，越接近 1 越不透。 */
   background: rgba(15, 20, 30, 0.45); 
+  
+  /* 👈 【自定义修改点 2：毛玻璃的模糊程度】
+     blur(25px) 里面的 25 越大，背后的画面越模糊。 */
   backdrop-filter: blur(25px) saturate(130%); 
   -webkit-backdrop-filter: blur(25px) saturate(130%);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  
+  border: 1px solid rgba(255, 255, 255, 0.15); /* 边框的透明度 */
   border-radius: 20px; 
   display: flex;
   align-items: center; 
@@ -190,11 +193,12 @@ function onTouchEnd() {
 }
 
 .desktop-menu-wrapper:hover {
-  /* 【修改】：放大页面时，永远保留左右 60px 给壁纸按钮，不顶出屏幕 */
   max-width: calc(100vw - 120px); 
   border-radius: 12px; 
-  /* 【统一】：更加扎实的磨砂质感 */
-  background: rgba(20, 25, 35, 0.75); 
+  
+  /* 👈 【自定义修改点 3：鼠标悬停展开时的菜单颜色和透明度】
+     这里现在是 0.75，相对不透。如果你希望它和不悬停时一样透，把它改成跟上面一样的 0.45 即可。*/
+  background: rgba(15, 20, 30, 0.45); 
 }
 
 .capsule-hint {
@@ -222,15 +226,13 @@ function onTouchEnd() {
   visibility: hidden;
   transition: opacity 0.3s ease, visibility 0.3s ease;
   
-  /* 【防裁剪黑科技】：让横向能够滚动，同时用 500px 隐形 padding 确保子菜单不被切掉 */
   overflow-x: auto;
   overflow-y: hidden;
-  scrollbar-width: none; /* 隐藏滚动条 Firefox */
+  scrollbar-width: none; 
   padding-bottom: 500px;
   margin-bottom: -500px;
-  pointer-events: none; /* 隐形 padding 区域不阻挡鼠标点击网页底部的内容 */
+  pointer-events: none; 
 }
-/* 隐藏滚动条 Chrome/Safari */
 .menu-bar::-webkit-scrollbar { display: none; }
 
 .desktop-menu-wrapper:hover .menu-bar {
@@ -241,10 +243,10 @@ function onTouchEnd() {
 
 .menu-item { 
   position: relative; 
-  height: 40px; /* 强制高度，配合 flex center 完美对齐文字 */
+  height: 40px; 
   display: flex;
   align-items: center;
-  pointer-events: auto; /* 恢复主菜单项的鼠标事件 */
+  pointer-events: auto; 
 }
 
 .menu-bar button { background: transparent; border: none; color: #fff; font-size: 15px; font-weight: 500; padding: 0.4rem 1.2rem; cursor: pointer; transition: all 0.3s ease; border-radius: 8px; position: relative; }
@@ -254,7 +256,7 @@ function onTouchEnd() {
 .menu-bar button.active::before { width: 40%; }
 
 /* =========================================
-   子菜单 (【统一】完美的扎实毛玻璃)
+   子菜单
    ========================================= */
 .sub-menu { 
   position: absolute; 
@@ -262,10 +264,13 @@ function onTouchEnd() {
   left: 50%; 
   transform: translateX(-50%); 
   
-  /* 完全对标 .desktop-menu-wrapper:hover 的色彩参数 */
-  background: rgba(20, 25, 35, 0.75); 
-  backdrop-filter: blur(25px) saturate(130%); 
-  -webkit-backdrop-filter: blur(25px) saturate(130%);
+  /* 👈 【自定义修改点 4：子菜单的颜色和透明度】
+     这决定了下拉出来的框的颜色。为了视觉统一，建议把这个参数保持和上面的“修改点 3”完全一样！*/
+  background: rgba(15, 20, 30, 0.45); 
+  
+  /* 👈 【自定义修改点 5：子菜单的毛玻璃模糊程度】 */
+  backdrop-filter: blur(50px) saturate(130%); 
+  -webkit-backdrop-filter: blur(50px) saturate(130%);
   border: 1px solid rgba(255, 255, 255, 0.15);
   
   border-radius: 10px; 
