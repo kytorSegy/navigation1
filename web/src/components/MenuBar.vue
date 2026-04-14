@@ -170,22 +170,39 @@ function onTouchEnd() {
   transform: translateX(-50%);
   height: 40px; 
   z-index: 9999; 
-  background: rgba(15, 20, 30, 0.45); 
-  backdrop-filter: blur(25px) saturate(130%); 
-  -webkit-backdrop-filter: blur(25px) saturate(130%);
+  
+  /* 边框和圆角保留在本体，但去掉了本体的毛玻璃属性 */
   border: 1px solid rgba(255, 255, 255, 0.15); 
   border-radius: 20px; 
   display: flex;
   align-items: center; 
   justify-content: center;
+  
   max-width: 130px; 
-  transition: max-width 0.5s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s ease, border-radius 0.3s ease;
+  transition: max-width 0.5s cubic-bezier(0.4, 0, 0.2, 1), border-radius 0.3s ease;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+/* 👈 【核心修复1】：主菜单的毛玻璃替身，解决子菜单模糊失效问题 */
+.desktop-menu-wrapper::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: rgba(15, 20, 30, 0.45); 
+  backdrop-filter: blur(25px) saturate(130%); 
+  -webkit-backdrop-filter: blur(25px) saturate(130%);
+  transition: background 0.3s ease;
 }
 
 .desktop-menu-wrapper:hover {
   max-width: calc(100vw - 120px); 
   border-radius: 12px; 
+}
+
+/* 展开时的背景同样交给替身处理 */
+.desktop-menu-wrapper:hover::before {
   background: rgba(15, 20, 30, 0.45); 
 }
 
@@ -213,6 +230,7 @@ function onTouchEnd() {
   opacity: 0;
   visibility: hidden;
   transition: opacity 0.3s ease, visibility 0.3s ease;
+  
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: none; 
@@ -243,27 +261,21 @@ function onTouchEnd() {
 .menu-bar button.active::before { width: 40%; }
 
 /* =========================================
-   子菜单 (【黑科技缝合】：T字型流体连接)
+   子菜单 (1px 压边 + 无上边框)
    ========================================= */
 .sub-menu { 
   position: absolute; 
-  /* 👈【魔法1】：往上挪 1px，精准压在主菜单的底部白边上 */
-  top: calc(100% - 0px); 
+  /* 👈 【核心修复2】：往上移 1px，完美压住主菜单的底边细线 */
+  top: calc(100% - 1px); 
   left: 50%; 
   transform: translateX(-50%); 
   
-  /* 👈【魔法2】：色彩和材质必须和主菜单 100% 一模一样，达到无缝融合 */
-  background: rgba(15, 20, 30, 0.45); 
-  backdrop-filter: blur(25px) saturate(130%); 
-  -webkit-backdrop-filter: blur(25px) saturate(130%);
-  
-  /* 👈【魔法3】：砍掉上边框，只保留左、右、下边框 */
+  /* 👈 【核心修复3】：删掉上边框，让顶部平滑敞开 */
   border-left: 1px solid rgba(255, 255, 255, 0.15);
   border-right: 1px solid rgba(255, 255, 255, 0.15);
   border-bottom: 1px solid rgba(255, 255, 255, 0.15);
   border-top: none; 
   
-  /* 👈【魔法4】：上面是直角（为了贴合主菜单），下面保留圆角 */
   border-radius: 0 0 12px 12px; 
   
   min-width: 110px; 
@@ -271,15 +283,25 @@ function onTouchEnd() {
   visibility: hidden; 
   transition: all 0.2s ease; 
   z-index: 1000; 
-  /* 阴影只往下打，防止上面渗出黑边 */
   box-shadow: 0 8px 24px rgba(0,0,0,0.3); 
   padding: 4px 0; 
+}
+
+/* 👈 【核心修复4】：子菜单的毛玻璃替身，让子菜单的玻璃质感满血复活！ */
+.sub-menu::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: rgba(15, 20, 30, 0.45); 
+  backdrop-filter: blur(25px) saturate(130%); 
+  -webkit-backdrop-filter: blur(25px) saturate(130%);
 }
 
 .sub-menu.show { 
   opacity: 1; 
   visibility: visible; 
-  /* 展开时不产生位移，死死贴住！ */
   transform: translateX(-50%) translateY(0); 
 }
 
@@ -299,13 +321,26 @@ function onTouchEnd() {
 
 .sub-menu-item:hover { 
   background: rgba(57,157,255,0.25) !important; 
-  color: #399dff !important; 
+  color: #fff !important; 
 }
 
 .sub-menu-item.active { 
   background: rgba(57,157,255,0.35) !important; 
   color: #399dff !important; 
   font-weight: 500 !important; 
+}
+
+/* =========================================
+   CSS 悬停桥（Hover Bridge，防止手抖滑出菜单）
+   ========================================= */
+.sub-menu::before {
+  content: '';
+  position: absolute;
+  top: -15px; 
+  left: 0;
+  width: 100%;
+  height: 15px; 
+  background: transparent; 
 }
 
 /* =========================================
