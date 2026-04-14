@@ -1,40 +1,50 @@
 <template>
-  <!-- ===== 桌面端：原始水平菜单栏 ===== -->
-  <nav class="menu-bar" v-if="!isMobileView">
-    <div
-      v-for="menu in menus"
-      :key="menu.id"
-      class="menu-item"
-      @mouseenter="showSubMenu(menu.id)"
-      @mouseleave="hideSubMenu(menu.id)"
-    >
-      <button
-        @click="$emit('select', menu)"
-        :class="{active: menu.id === activeId}"
-      >{{ menu.name }}</button>
+  <div class="desktop-menu-wrapper" v-if="!isMobileView">
+    
+    <div class="capsule-hint">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;">
+        <line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line>
+      </svg>
+      菜单栏
+    </div>
+
+    <nav class="menu-bar">
       <div
-        v-if="menu.subMenus && menu.subMenus.length > 0"
-        class="sub-menu"
-        :class="{ 'show': hoveredMenuId === menu.id }"
+        v-for="menu in menus"
+        :key="menu.id"
+        class="menu-item"
+        @mouseenter="showSubMenu(menu.id)"
+        @mouseleave="hideSubMenu(menu.id)"
       >
         <button
-          v-for="subMenu in menu.subMenus"
-          :key="subMenu.id"
-          @click="$emit('select', subMenu, menu)"
-          :class="{active: subMenu.id === activeSubMenuId}"
-          class="sub-menu-item"
-        >{{ subMenu.name }}</button>
+          @click="$emit('select', menu)"
+          :class="{active: menu.id === activeId}"
+        >{{ menu.name }}</button>
+        <div
+          v-if="menu.subMenus && menu.subMenus.length > 0"
+          class="sub-menu"
+          :class="{ 'show': hoveredMenuId === menu.id }"
+        >
+          <button
+            v-for="subMenu in menu.subMenus"
+            :key="subMenu.id"
+            @click="$emit('select', subMenu, menu)"
+            :class="{active: subMenu.id === activeSubMenuId}"
+            class="sub-menu-item"
+          >{{ subMenu.name }}</button>
+        </div>
       </div>
-    </div>
-  </nav>
+    </nav>
+  </div>
 
-  <!-- ===== 移动端：汉堡按钮 + 当前菜单名 ===== -->
   <div class="mobile-menu-header" v-if="isMobileView">
-    <button class="hamburger-btn" @click="drawerOpen = true" aria-label="打开菜单">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
-      </svg>
-    </button>
+    <div class="mobile-header-left">
+      <button class="hamburger-btn" @click="drawerOpen = true" aria-label="打开菜单">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+      </button>
+    </div>
     <div class="mobile-breadcrumb">
       <span class="mobile-breadcrumb-main" v-if="activeMenuObj">{{ activeMenuObj.name }}</span>
       <template v-if="activeSubMenuObj">
@@ -42,10 +52,8 @@
         <span class="mobile-breadcrumb-sub">{{ activeSubMenuObj.name }}</span>
       </template>
     </div>
-    <div class="hamburger-spacer"></div>
   </div>
 
-  <!-- ===== 移动端侧边抽屉 ===== -->
   <Teleport to="body">
     <div v-if="drawerVisible" class="drawer-backdrop" :class="drawerOpen ? 'backdrop-enter' : 'backdrop-exit'" @click="closeDrawer"></div>
     <div
@@ -65,21 +73,14 @@
       </div>
       <div class="drawer-body">
         <div v-for="menu in menus" :key="menu.id" class="drawer-menu-group">
-          <button
-            class="drawer-menu-item"
-            :class="{ active: menu.id === activeId }"
-            @click="handleDrawerMenuClick(menu)"
-          >
+          <button class="drawer-menu-item" :class="{ active: menu.id === activeId }" @click="handleDrawerMenuClick(menu)">
             <span>{{ menu.name }}</span>
             <svg v-if="menu.subMenus && menu.subMenus.length" class="drawer-chevron" :class="{ expanded: expandedId === menu.id }" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
           </button>
           <div v-if="menu.subMenus && menu.subMenus.length && expandedId === menu.id" class="drawer-sub-list">
-            <button
-              v-for="sub in menu.subMenus" :key="sub.id"
-              class="drawer-sub-item"
-              :class="{ active: sub.id === activeSubMenuId }"
-              @click="handleDrawerSubClick(menu, sub)"
-            >{{ sub.name }}</button>
+            <button v-for="sub in menu.subMenus" :key="sub.id" class="drawer-sub-item" :class="{ active: sub.id === activeSubMenuId }" @click="handleDrawerSubClick(menu, sub)">
+              {{ sub.name }}
+            </button>
           </div>
         </div>
       </div>
@@ -143,62 +144,138 @@ function onTouchEnd() {
 </script>
 
 <style scoped>
-/* ===== 桌面端菜单（原样保留） ===== */
-.menu-bar { display: flex; justify-content: center; flex-wrap: wrap; padding: 0 1rem; position: relative; }
+/* =========================================
+   桌面端：悬浮胶囊 CSS 动画
+   ========================================= */
+.desktop-menu-wrapper {
+  position: fixed; 
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  height: 48px;
+  /* 胶囊背景：半透明黑色，带毛玻璃 */
+  background: rgba(20, 25, 35, 0.5); 
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  
+  /* 默认宽度为 110px，刚好装下“菜单栏”三个字 */
+  max-width: 110px; 
+  transition: max-width 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), background 0.3s ease, border-radius 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  overflow: hidden; /* 防止里面的菜单在没展开时露出来 */
+}
+
+/* 鼠标放上去时，胶囊伸长！ */
+.desktop-menu-wrapper:hover {
+  max-width: 1200px; 
+  background: rgba(20, 25, 35, 0.7); 
+  border-radius: 16px; /* 展开后稍微方一点点，更好看 */
+}
+
+/* 胶囊提示文字 */
+.capsule-hint {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 1px;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+/* 展开时，隐藏提示文字 */
+.desktop-menu-wrapper:hover .capsule-hint {
+  opacity: 0;
+  transform: translateY(-10px);
+  pointer-events: none;
+}
+
+/* 真正的菜单容器 */
+.menu-bar {
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  padding: 0 1rem;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+/* 悬浮时，显示菜单 */
+.desktop-menu-wrapper:hover .menu-bar {
+  opacity: 1;
+  visibility: visible;
+  transition-delay: 0.15s; 
+}
+
 .menu-item { position: relative; }
-.menu-bar button { background: transparent; border: none; color: #fff; font-size: 16px; font-weight: 500; padding: 0.8rem 2rem; cursor: pointer; transition: all 0.3s ease; text-shadow: 0 1px 2px rgba(0,0,0,0.3); border-radius: 8px; position: relative; overflow: hidden; }
-.menu-bar button::before { content: ''; position: absolute; bottom: 0; left: 50%; width: 0; height: 2px; background: #399dff; transition: all 0.3s ease; transform: translateX(-50%); }
-.menu-bar button:hover { color: #399dff; transform: translateY(-1px); }
+.menu-bar button { background: transparent; border: none; color: #fff; font-size: 15px; font-weight: 500; padding: 0.6rem 1.2rem; cursor: pointer; transition: all 0.3s ease; border-radius: 8px; position: relative; }
+.menu-bar button::before { content: ''; position: absolute; bottom: 4px; left: 50%; width: 0; height: 2px; background: #399dff; transition: all 0.3s ease; transform: translateX(-50%); }
+.menu-bar button:hover { color: #399dff; }
 .menu-bar button.active { color: #399dff; }
-.menu-bar button.active::before { width: 60%; }
-.sub-menu { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); backdrop-filter: blur(8px); border-radius: 6px; min-width: 120px; opacity: 0; visibility: hidden; transition: all 0.2s ease; z-index: 1000; box-shadow: 0 4px 16px rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15); margin-top: -2px; }
-.sub-menu.show { opacity: 1; visibility: visible; transform: translateX(-50%) translateY(2px); }
-.sub-menu-item { display: block !important; width: 100% !important; text-align: center !important; padding: 0.4rem 1rem !important; border: none !important; background: transparent !important; color: #fff !important; font-size: 14px !important; cursor: pointer !important; transition: all 0.2s ease !important; border-radius: 0 !important; text-shadow: none !important; line-height: 1.5 !important; }
-.sub-menu-item:hover { background: rgba(57,157,255,0.25) !important; color: #399dff !important; transform: none !important; }
-.sub-menu-item.active { background: rgba(57,157,255,0.35) !important; color: #399dff !important; font-weight: 500 !important; }
-.sub-menu-item::before { display: none; }
+.menu-bar button.active::before { width: 40%; }
 
-/* ===== 移动端顶栏 ===== */
-.mobile-menu-header { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; width: 100%; box-sizing: border-box; }
-.hamburger-btn { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.1); backdrop-filter: blur(8px); color: #fff; border: none; cursor: pointer; -webkit-tap-highlight-color: transparent; }
-.hamburger-btn:active { background: rgba(255,255,255,0.2); }
-.hamburger-spacer { width: 40px; }
-.mobile-breadcrumb { display: flex; align-items: center; gap: 5px; color: rgba(255,255,255,0.8); }
-.mobile-breadcrumb-main { font-size: 14px; font-weight: 500; }
-.mobile-breadcrumb-sep { font-size: 11px; color: rgba(255,255,255,0.3); }
-.mobile-breadcrumb-sub { font-size: 12px; color: rgba(255,255,255,0.6); }
+.sub-menu { position: absolute; top: calc(100% + 5px); left: 50%; transform: translateX(-50%); backdrop-filter: blur(12px); border-radius: 10px; min-width: 110px; opacity: 0; visibility: hidden; transition: all 0.2s ease; z-index: 1000; box-shadow: 0 8px 24px rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); background: rgba(20,25,35,0.85); }
+.sub-menu.show { opacity: 1; visibility: visible; transform: translateX(-50%) translateY(0); }
+.sub-menu-item { display: block !important; width: 100% !important; text-align: center !important; padding: 0.6rem 1rem !important; border: none !important; color: #eee !important; font-size: 13px !important; transition: all 0.2s ease !important; background: transparent !important; }
+.sub-menu-item:hover { background: rgba(255,255,255,0.1) !important; color: #fff !important; }
+.sub-menu-item.active { background: rgba(57,157,255,0.2) !important; color: #399dff !important; }
 
-/* ===== 抽屉蒙层 ===== */
-.drawer-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 999; backdrop-filter: blur(2px); }
-.backdrop-enter { animation: fadeInBg 0.25s ease forwards; }
-.backdrop-exit { animation: fadeOutBg 0.2s ease forwards; }
+/* =========================================
+   移动端：顶栏和极致毛玻璃抽屉
+   ========================================= */
+.mobile-menu-header { display: flex; align-items: center; justify-content: space-between; padding: 12px; width: 100%; box-sizing: border-box; }
+.hamburger-btn { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.1); backdrop-filter: blur(8px); color: #fff; border: 1px solid rgba(255,255,255,0.1); cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.mobile-breadcrumb { display: flex; align-items: center; gap: 6px; color: rgba(255,255,255,0.9); }
+.mobile-breadcrumb-main { font-size: 14px; font-weight: 600; }
+.mobile-breadcrumb-sep { font-size: 12px; color: rgba(255,255,255,0.4); }
+.mobile-breadcrumb-sub { font-size: 13px; color: rgba(255,255,255,0.7); }
+
+.drawer-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 999; }
+.backdrop-enter { animation: fadeInBg 0.3s ease forwards; }
+.backdrop-exit { animation: fadeOutBg 0.3s ease forwards; }
 @keyframes fadeInBg { from { opacity: 0; } to { opacity: 1; } }
 @keyframes fadeOutBg { from { opacity: 1; } to { opacity: 0; } }
 
-/* ===== 抽屉面板：关键——不占满全屏，上下留安全区 ===== */
-.drawer-panel { position: fixed; left: 0; z-index: 1000; width: 72vw; max-width: 280px; top: 56px; bottom: max(80px, calc(60px + env(safe-area-inset-bottom, 20px))); background: rgba(15,17,26,0.96); backdrop-filter: blur(20px); box-shadow: 4px 0 24px rgba(0,0,0,0.4); display: flex; flex-direction: column; overflow: hidden; border-top-right-radius: 16px; border-bottom-right-radius: 16px; border-right: 1px solid rgba(255,255,255,0.05); }
-.drawer-enter { animation: slideInL 0.28s cubic-bezier(0.32,0.72,0,1) forwards; }
-.drawer-exit { animation: slideOutL 0.22s cubic-bezier(0.32,0.72,0,1) forwards; }
+/* 【核心】：抽屉的毛玻璃效果 */
+.drawer-panel { 
+  position: fixed; left: 0; z-index: 1000; width: 75vw; max-width: 300px; 
+  top: 0; bottom: 0; 
+  
+  /* 半透明暗色背景 + 强力模糊，制造玻璃质感 */
+  background: rgba(15, 20, 30, 0.35); 
+  backdrop-filter: blur(25px) saturate(130%); 
+  -webkit-backdrop-filter: blur(25px) saturate(130%);
+  
+  /* 右侧的亮色反光边线 */
+  border-right: 1px solid rgba(255, 255, 255, 0.15); 
+  box-shadow: 10px 0 30px rgba(0,0,0,0.2); 
+  display: flex; flex-direction: column; overflow: hidden; 
+}
+.drawer-enter { animation: slideInL 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
+.drawer-exit { animation: slideOutL 0.25s cubic-bezier(0.32, 0.72, 0, 1) forwards; }
 @keyframes slideInL { from { transform: translateX(-100%); } to { transform: translateX(0); } }
 @keyframes slideOutL { from { transform: translateX(0); } to { transform: translateX(-100%); } }
 
-.drawer-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.08); flex-shrink: 0; }
-.drawer-title { color: rgba(255,255,255,0.9); font-size: 14px; font-weight: 600; }
-.drawer-close-btn { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.5); background: transparent; border: none; cursor: pointer; -webkit-tap-highlight-color: transparent; }
-.drawer-close-btn:active { background: rgba(255,255,255,0.1); }
-.drawer-body { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 8px; }
-.drawer-menu-group { margin-bottom: 2px; }
-.drawer-menu-item { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 12px; border-radius: 12px; border: none; background: transparent; color: rgba(255,255,255,0.7); font-size: 14px; font-weight: 500; cursor: pointer; min-height: 44px; box-sizing: border-box; text-align: left; -webkit-tap-highlight-color: transparent; transition: background 0.15s; }
-.drawer-menu-item:active { background: rgba(255,255,255,0.08); }
-.drawer-menu-item.active { background: rgba(37,102,216,0.2); color: #fff; }
-.drawer-chevron { transition: transform 0.2s; color: rgba(255,255,255,0.3); flex-shrink: 0; }
-.drawer-chevron.expanded { transform: rotate(90deg); }
-.drawer-sub-list { margin-left: 12px; padding-left: 12px; border-left: 1px solid rgba(255,255,255,0.08); margin-top: 2px; margin-bottom: 4px; }
-.drawer-sub-item { width: 100%; padding: 10px 12px; border-radius: 8px; border: none; background: transparent; color: rgba(255,255,255,0.5); font-size: 12px; cursor: pointer; text-align: left; min-height: 40px; display: flex; align-items: center; box-sizing: border-box; -webkit-tap-highlight-color: transparent; transition: background 0.15s; }
-.drawer-sub-item:active { background: rgba(255,255,255,0.05); }
-.drawer-sub-item.active { background: rgba(37,102,216,0.15); color: #fff; }
-.drawer-footer { padding: 8px 16px; border-top: 1px solid rgba(255,255,255,0.05); flex-shrink: 0; text-align: center; color: rgba(255,255,255,0.2); font-size: 10px; }
+.drawer-header { display: flex; align-items: center; justify-content: space-between; padding: 20px 16px 12px; border-bottom: 1px solid rgba(255,255,255,0.1); flex-shrink: 0; }
+.drawer-title { color: #fff; font-size: 16px; font-weight: 600; letter-spacing: 1px; }
+.drawer-close-btn { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.7); background: rgba(255,255,255,0.05); border: none; cursor: pointer; }
+.drawer-body { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 12px; }
+.drawer-menu-item { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 14px; border-radius: 12px; border: none; background: transparent; color: rgba(255,255,255,0.85); font-size: 15px; font-weight: 500; cursor: pointer; text-align: left; transition: all 0.2s; }
+.drawer-menu-item:active { background: rgba(255,255,255,0.1); }
+.drawer-menu-item.active { background: rgba(255,255,255,0.15); color: #fff; border-left: 3px solid #399dff; border-radius: 4px 12px 12px 4px; }
+.drawer-chevron { transition: transform 0.2s; color: rgba(255,255,255,0.5); }
+.drawer-chevron.expanded { transform: rotate(90deg); color: #fff; }
+.drawer-sub-list { margin-left: 14px; padding-left: 14px; border-left: 1px solid rgba(255,255,255,0.15); margin-top: 4px; margin-bottom: 8px; }
+.drawer-sub-item { width: 100%; padding: 12px 14px; border-radius: 10px; border: none; background: transparent; color: rgba(255,255,255,0.65); font-size: 13px; cursor: pointer; text-align: left; transition: all 0.2s; }
+.drawer-sub-item.active { background: rgba(255,255,255,0.1); color: #fff; font-weight: 500; }
+.drawer-footer { padding: 12px 16px; border-top: 1px solid rgba(255,255,255,0.1); text-align: center; color: rgba(255,255,255,0.4); font-size: 12px; }
 
 @media (min-width: 768px) { .mobile-menu-header { display: none; } }
-@media (max-width: 767px) { .menu-bar { display: none; } }
+@media (max-width: 767px) { .desktop-menu-wrapper { display: none; } }
 </style>
