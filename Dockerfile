@@ -42,8 +42,8 @@ COPY routes/ ./routes/
 COPY --from=frontend-builder /app/dist ./web/dist
 
 # 拷贝启动脚本并赋予执行权限
-COPY backup.sh entrypoint.sh ./
-RUN sed -i 's/\r$//' backup.sh entrypoint.sh && chmod +x backup.sh entrypoint.sh
+COPY entrypoint.sh ./
+RUN sed -i 's/\r$//' entrypoint.sh && chmod +x entrypoint.sh
 
 # 设置环境变量为生产模式，并暴露 3000 端口
 ENV NODE_ENV=production
