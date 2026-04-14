@@ -99,8 +99,8 @@ const emit = defineEmits(['select']);
 
 const hoveredMenuId = ref(null);
 function showSubMenu(menuId) { hoveredMenuId.value = menuId; }
-// 【修改】将子菜单消失的延迟时间增加到了 400 毫秒，体验更丝滑
-function hideSubMenu(menuId) { setTimeout(() => { if (hoveredMenuId.value === menuId) hoveredMenuId.value = null; }, 400); }
+// 【修改】因为有了 CSS 悬停桥，我们将 JS 延迟恢复到原生干脆利落的 100ms
+function hideSubMenu(menuId) { setTimeout(() => { if (hoveredMenuId.value === menuId) hoveredMenuId.value = null; }, 100); }
 
 const isMobileView = ref(false);
 function checkMobile() { isMobileView.value = window.innerWidth < 768; }
@@ -154,7 +154,6 @@ function onTouchEnd() {
   position: relative; 
   margin: 0 auto 24px auto; 
   height: 48px;
-  /* 【修改】替换为全局统一的毛玻璃样式 */
   background: rgba(15, 20, 30, 0.35); 
   backdrop-filter: blur(25px) saturate(130%); 
   -webkit-backdrop-filter: blur(25px) saturate(130%);
@@ -171,7 +170,6 @@ function onTouchEnd() {
 }
 
 .desktop-menu-wrapper:hover {
-  /* 【修改】将最大宽度设为极大的值，保证能够包住所有菜单 */
   max-width: 3000px; 
   border-radius: 12px; 
 }
@@ -220,11 +218,23 @@ function onTouchEnd() {
 .sub-menu-item.active { background: rgba(57,157,255,0.2) !important; color: #399dff !important; }
 
 /* =========================================
+   【新增】CSS 悬停桥（Hover Bridge）
+   ========================================= */
+.sub-menu::before {
+  content: '';
+  position: absolute;
+  top: -15px;  /* 向上延伸，覆盖主菜单到子菜单的空隙 */
+  left: 0;
+  width: 100%;
+  height: 15px; /* 连接色块高度 */
+  background: transparent; /* 完全隐形，只是用来承接鼠标悬停事件 */
+}
+
+/* =========================================
    移动端：顶栏和极致毛玻璃抽屉
    ========================================= */
 .mobile-menu-header { 
   position: fixed; 
-  /* 【修改】为了与右侧壁纸按钮对齐，将 top 设置为 16px，调整 padding */
   top: 16px; left: 0; width: 100%; z-index: 100;
   display: flex; align-items: center; justify-content: space-between; padding: 0 12px; box-sizing: border-box; 
 }
