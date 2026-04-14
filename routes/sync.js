@@ -1,6 +1,6 @@
 /**
  * routes/sync.js - 全能同步大管家 (R2 + Git + SSE 热更新)
- * 彻底修复了 Git diff 历史丢失和 SQLite 伪变更导致的无限回音墙 Bug
+ * 增加了 git reset --hard 强制清空本地冲突的终极防御机制
  */
 const fs = require('fs');
 const path = require('path');
@@ -12,7 +12,7 @@ const EventEmitter = require('events');
 const syncEvents = new EventEmitter();
 
 // =================================================================
-// [模块 1] R2 核心功能 (原封不动保留)
+// [模块 1] R2 核心功能
 // =================================================================
 let s3 = null, PutCmd = null, GetCmd = null, HeadCmd = null, DeleteCmd = null, ListCmd = null;
 const { accountId, accessKeyId, secretAccessKey, bucketName, publicDomain } = config.r2;
@@ -95,7 +95,6 @@ const WALLPAPER_URL_FILE = 'wallpaper_url.txt';
 function runCmd(cmd, cwd = __dirname) { try { execSync(cmd, { cwd, stdio: 'inherit' }); return true; } catch (e) { return false; } }
 function runCmdCapture(cmd, cwd = __dirname) { try { return execSync(cmd, { cwd, stdio: 'pipe' }).toString().trim(); } catch (e) { return ''; } }
 
-// 核心功能：获取文件的真实 MD5 指纹，无视虚假的时间戳修改
 function getFileMd5(filePath) {
   try {
     if (!fs.existsSync(filePath)) return null;
@@ -154,17 +153,16 @@ function restoreDbFromSql() {
 function exportDbToSql() { runCmd(`sqlite3 "${SOURCE_FILE}" .dump > "${path.join(BACKUP_DIR, SQL_FILE)}"`); }
 
 // =================================================================
-// [模块 3] 统一大轮询 (断绝无限循环)
+// [模块 3] 统一大轮询 (断绝死锁版)
 // =================================================================
 const CHECK_INTERVAL = parseInt(process.env.BACKUP_INTERVAL) || 30;
 let lastSyncedBgUrl = null;
-let lastDbMd5 = null; // 记录数据库的真实指纹
+let lastDbMd5 = null; 
 
 function startUnifiedSync(db) {
   const hasGit = initGitRepo(db);
   if (!hasGit && !isR2Enabled()) { console.log('[同步] Git 和 R2 均未配置，大管家进入休眠。'); return; }
 
-  // 初始化时记录当前数据库指纹
   lastDbMd5 = getFileMd5(SOURCE_FILE);
   console.log(`[同步] 启动全能大管家 (每 ${CHECK_INTERVAL} 秒执行一次巡检)...`);
 
@@ -179,26 +177,26 @@ function startUnifiedSync(db) {
         
         if (parseInt(behindCount) > 0) {
           console.log("[同步] ↓ 发现云端数据有更新，正在拉取...");
-          // 【修复点 1】：使用绝对哈希比对，再也不怕刚建的容器没有历史记录报错了！
           const oldHash = runCmdCapture(`git rev-parse HEAD`, BACKUP_DIR);
-          runCmd(`git pull origin main --rebase -q`, BACKUP_DIR);
-          const newHash = runCmdCapture(`git rev-parse HEAD`, BACKUP_DIR);
           
+          // 👇【致命修复：完全复刻原版 backup.sh 的大铁锤机制】👇
+          // 强行丢弃本地仓库任何未提交的脏数据、权限变更，保证 100% 拉取成功！
+          runCmd(`git reset --hard origin/main -q`, BACKUP_DIR);
+          runCmd(`git pull origin main -q`, BACKUP_DIR);
+
+          const newHash = runCmdCapture(`git rev-parse HEAD`, BACKUP_DIR);
           const changedFiles = runCmdCapture(`git diff ${oldHash} ${newHash} --name-only`, BACKUP_DIR);
           
           if (changedFiles.includes(SQL_FILE)) {
             dbRestored = restoreDbFromSql();
-            
-            // 【修复点 2】：如果我们成功拉取了数据，立刻更新指纹缓存。
-            // 告诉系统：“这是我刚拉下来的，别傻乎乎地又推上去！”
             if (dbRestored) {
-              lastDbMd5 = getFileMd5(SOURCE_FILE);
+              lastDbMd5 = getFileMd5(SOURCE_FILE); // 更新指纹，阻断回音墙
             }
           }
         }
       }
 
-      // --- 阶段二：R2 壁纸对齐 (填补时间差) ---
+      // --- 阶段二：R2 壁纸对齐与热更新广播 ---
       const bgUrl = await new Promise(res => db.get("SELECT value FROM settings WHERE key='background'", (err, row) => res(row ? row.value : '')));
       
       if (bgUrl && bgUrl !== lastSyncedBgUrl && publicDomain && bgUrl.startsWith(publicDomain)) {
@@ -221,7 +219,6 @@ function startUnifiedSync(db) {
 
       // --- 阶段三：上行同步 (把本地真正的修改发给云端) ---
       if (hasGit && fs.existsSync(SOURCE_FILE)) {
-        // 【修复点 3】：用真实的 MD5 指纹，无视 SQLite 偷偷修改的时间戳
         const currentMd5 = getFileMd5(SOURCE_FILE);
         
         if (currentMd5 && currentMd5 !== lastDbMd5) {
@@ -233,8 +230,6 @@ function startUnifiedSync(db) {
 
           runCmd(`git add "${SQL_FILE}" "${WALLPAPER_URL_FILE}"`, BACKUP_DIR);
           
-          // 【终极保险】：就算 MD5 因为 SQLite 内部碎片变了，只要生成的 SQL 文本完全一样，
-          // Git Porcelain 检测不到实质内容改变，就会拦截这次推送，绝不死循环！
           const hasChanges = runCmdCapture(`git status --porcelain`, BACKUP_DIR);
           
           if (hasChanges) {
@@ -246,7 +241,6 @@ function startUnifiedSync(db) {
               if (pushResult) console.log("[同步] 🎉 推送成功！云端数据已是最新状态。");
             } catch (e) {}
           }
-          // 不管有没有推送，既然处理完了，就更新指纹缓存
           lastDbMd5 = currentMd5;
         }
       }
