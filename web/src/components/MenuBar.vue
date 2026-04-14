@@ -99,7 +99,7 @@ const emit = defineEmits(['select']);
 
 const hoveredMenuId = ref(null);
 function showSubMenu(menuId) { hoveredMenuId.value = menuId; }
-// 保持 100ms 延迟，配合下面的纯 CSS 悬停桥，操作非常干脆
+// 保持 100ms 延迟，配合下面的纯 CSS 悬停桥，操作干脆
 function hideSubMenu(menuId) { setTimeout(() => { if (hoveredMenuId.value === menuId) hoveredMenuId.value = null; }, 100); }
 
 const isMobileView = ref(false);
@@ -151,21 +151,18 @@ function onTouchEnd() {
    桌面端：悬浮菜单主框
    ========================================= */
 .desktop-menu-wrapper {
-  /* 【修改1：固定悬浮居中】将定位改为 fixed，并设置距离顶部 16px */
   position: fixed; 
   top: 16px; 
-  /* 使用 left 50% 和 transform 让其永远在屏幕正中间 */
   left: 50%;
   transform: translateX(-50%);
-  
-  /* 【修改2：高度调整】将高度从 48px 改为 40px，与两侧按钮完美对齐 */
   height: 40px; 
   
-  background: rgba(15, 20, 30, 0.35); 
+  /* 未展开时的背景（稍微透一点，保持灵动感） */
+  background: rgba(15, 20, 30, 0.45); 
   backdrop-filter: blur(25px) saturate(130%); 
   -webkit-backdrop-filter: blur(25px) saturate(130%);
   border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 20px; /* 为了适应 40px 高度，圆角稍微缩小一点让视觉更舒适 */
+  border-radius: 20px; 
   display: flex;
   align-items: center;
   justify-content: center;
@@ -177,8 +174,11 @@ function onTouchEnd() {
 }
 
 .desktop-menu-wrapper:hover {
-  max-width: 3000px; 
+  /* 【修改点】：限制最大宽度为屏幕宽度减去两边间距，防止放大后超出屏幕 */
+  max-width: calc(100vw - 32px); 
   border-radius: 12px; 
+  /* 【修改点】：展开时加深背景颜色，提升文字对比度，不再觉得太透 */
+  background: rgba(15, 20, 30, 0.65); 
 }
 
 .capsule-hint {
@@ -204,7 +204,20 @@ function onTouchEnd() {
   opacity: 0;
   visibility: hidden;
   transition: opacity 0.3s ease, visibility 0.3s ease;
+  
+  /* 【新增】：开启内部水平滑动，并且隐藏底部的滚动条，美观又实用 */
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none; /* 适配 Firefox 隐藏滚动条 */
+  -ms-overflow-style: none; /* 适配 IE/Edge 隐藏滚动条 */
 }
+
+/* 适配 Chrome/Safari/Edge 隐藏滚动条 */
+.menu-bar::-webkit-scrollbar {
+  display: none; 
+}
+
 .desktop-menu-wrapper:hover .menu-bar {
   opacity: 1;
   visibility: visible;
@@ -212,7 +225,6 @@ function onTouchEnd() {
 }
 
 .menu-item { position: relative; }
-/* 因为主高度变成了 40px，稍微缩小按钮的上下 padding，让它居中不拥挤 */
 .menu-bar button { background: transparent; border: none; color: #fff; font-size: 15px; font-weight: 500; padding: 0.4rem 1.2rem; cursor: pointer; transition: all 0.3s ease; border-radius: 8px; position: relative; }
 .menu-bar button::before { content: ''; position: absolute; bottom: 2px; left: 50%; width: 0; height: 2px; background: #399dff; transition: all 0.3s ease; transform: translateX(-50%); }
 .menu-bar button:hover { color: #399dff; }
@@ -220,7 +232,7 @@ function onTouchEnd() {
 .menu-bar button.active::before { width: 40%; }
 
 /* =========================================
-   【修改3：子菜单应用全局同款毛玻璃】
+   子菜单 (统一毛玻璃，不那么透)
    ========================================= */
 .sub-menu { 
   position: absolute; 
@@ -228,8 +240,8 @@ function onTouchEnd() {
   left: 50%; 
   transform: translateX(-50%); 
   
-  /* 这里完全替换为你主菜单的毛玻璃参数 */
-  background: rgba(15, 20, 30, 0.35); 
+  /* 【修改点】：这里的背景与上面 desktop-menu-wrapper:hover 保持 100% 一致！*/
+  background: rgba(15, 20, 30, 0.65); 
   backdrop-filter: blur(25px) saturate(130%); 
   -webkit-backdrop-filter: blur(25px) saturate(130%);
   border: 1px solid rgba(255, 255, 255, 0.15);
@@ -255,11 +267,11 @@ function onTouchEnd() {
 .sub-menu::before {
   content: '';
   position: absolute;
-  top: -15px;  /* 向上延伸，覆盖主菜单到子菜单的空隙 */
+  top: -15px; 
   left: 0;
   width: 100%;
-  height: 15px; /* 连接色块高度 */
-  background: transparent; /* 完全隐形，只是用来承接鼠标悬停事件 */
+  height: 15px; 
+  background: transparent; 
 }
 
 /* =========================================
