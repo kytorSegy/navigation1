@@ -99,7 +99,8 @@ const emit = defineEmits(['select']);
 
 const hoveredMenuId = ref(null);
 function showSubMenu(menuId) { hoveredMenuId.value = menuId; }
-function hideSubMenu(menuId) { setTimeout(() => { if (hoveredMenuId.value === menuId) hoveredMenuId.value = null; }, 100); }
+// 【修改】将子菜单消失的延迟时间增加到了 400 毫秒，体验更丝滑
+function hideSubMenu(menuId) { setTimeout(() => { if (hoveredMenuId.value === menuId) hoveredMenuId.value = null; }, 400); }
 
 const isMobileView = ref(false);
 function checkMobile() { isMobileView.value = window.innerWidth < 768; }
@@ -150,13 +151,13 @@ function onTouchEnd() {
    桌面端：悬浮胶囊 CSS 动画
    ========================================= */
 .desktop-menu-wrapper {
-  /* 【改动1】去掉了 position: fixed，让它变成普通的流式元素，可以放在任何地方 */
   position: relative; 
-  margin: 0 auto 24px auto; /* 让它自己居中，并且距离下方的搜索框 24px */
+  margin: 0 auto 24px auto; 
   height: 48px;
-  background: rgba(20, 25, 35, 0.5); 
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  /* 【修改】替换为全局统一的毛玻璃样式 */
+  background: rgba(15, 20, 30, 0.35); 
+  backdrop-filter: blur(25px) saturate(130%); 
+  -webkit-backdrop-filter: blur(25px) saturate(130%);
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 24px;
   display: flex;
@@ -164,15 +165,14 @@ function onTouchEnd() {
   justify-content: center;
   z-index: 1000;
   
-  /* 【改动2】稍微加长了胶囊的默认宽度，显得更大气 */
   max-width: 130px; 
   transition: max-width 0.5s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s ease, border-radius 0.3s ease;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
 }
 
 .desktop-menu-wrapper:hover {
-  max-width: 1000px; 
-  background: rgba(20, 25, 35, 0.75); 
+  /* 【修改】将最大宽度设为极大的值，保证能够包住所有菜单 */
+  max-width: 3000px; 
   border-radius: 12px; 
 }
 
@@ -223,10 +223,10 @@ function onTouchEnd() {
    移动端：顶栏和极致毛玻璃抽屉
    ========================================= */
 .mobile-menu-header { 
-  /* 【改动3】让手机端的菜单栏永远固定在页面最上方 */
   position: fixed; 
-  top: 0; left: 0; width: 100%; z-index: 100;
-  display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; box-sizing: border-box; 
+  /* 【修改】为了与右侧壁纸按钮对齐，将 top 设置为 16px，调整 padding */
+  top: 16px; left: 0; width: 100%; z-index: 100;
+  display: flex; align-items: center; justify-content: space-between; padding: 0 12px; box-sizing: border-box; 
 }
 .hamburger-btn { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.1); backdrop-filter: blur(8px); color: #fff; border: 1px solid rgba(255,255,255,0.1); cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .mobile-breadcrumb { display: flex; align-items: center; gap: 6px; color: rgba(255,255,255,0.9); }
