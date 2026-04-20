@@ -9,7 +9,7 @@
     >
       <!--
         这个是首屏提示文字区域。
-        之前“菜单栏”会在页面刚加载时被挤窄，导致看起来像竖着排。
+        之前"菜单栏"会在页面刚加载时被挤窄，导致看起来像竖着排。
         下面的 CSS 已经强制它不换行。
       -->
       <div class="capsule-hint">
@@ -179,24 +179,22 @@ function handleWrapperMouseLeave() {
 }
 
 // =========================================================================
-// 👇 这里是修复子菜单边缘疯狂闪烁 Bug 的核心代码 👇
+// 👇 子菜单显示 / 隐藏防抖逻辑（防止边缘闪烁）
 // =========================================================================
 
-// 新增：专门用来存放子菜单定时器的变量（就像一个用来装“关闭闹钟”的盒子）
+// 用来存放"延迟关闭子菜单"的定时器
 let subMenuTimeout = null;
 
 function showSubMenu(menuId) {
-  // 【修复关键1】：只要鼠标进来了，就赶紧把之前准备关闭菜单的“闹钟”给停掉
-  // 这样就算手抖了一下又回来了，菜单也不会突然消失
+  // 鼠标进入时：立刻取消之前可能已经计划好的"关闭定时器"
+  // 确保菜单不会因为鼠标短暂离开又回来而消失
   clearTimeout(subMenuTimeout);
-
-  // 正常显示当前鼠标所在的子菜单
   hoveredMenuId.value = menuId;
 }
 
 function hideSubMenu(menuId) {
-  // 【修复关键2】：不要立刻关闭菜单，而是设一个 150 毫秒后关闭的“闹钟”
-  // 并且把这个闹钟存进 subMenuTimeout 变量里，以便随时可以被上面的 clearTimeout 撤销
+  // 鼠标离开时：不立即关闭，等 150ms 后再关
+  // 这段时间内如果鼠标又回来了，上面的 clearTimeout 会把这个定时器撤销
   subMenuTimeout = setTimeout(() => {
     if (hoveredMenuId.value === menuId) {
       hoveredMenuId.value = null;
@@ -204,8 +202,6 @@ function hideSubMenu(menuId) {
   }, 150);
 }
 
-// =========================================================================
-// 👆 修复结束 👆
 // =========================================================================
 
 function handleWheel(e) {
@@ -357,7 +353,7 @@ function onTouchEnd() {
   background: rgba(15, 20, 30, 0.45);
 }
 
-/* 这里是“菜单栏”首屏提示文字 */
+/* 这里是"菜单栏"首屏提示文字 */
 .capsule-hint {
   position: absolute;
   display: flex;
@@ -395,6 +391,18 @@ function onTouchEnd() {
   padding-bottom: 500px;
   margin-bottom: -500px;
   pointer-events: none;
+
+  /*
+   * ✅ Bug 修复①：明确声明光标为默认箭头样式
+   *
+   * 问题根源：Edge 浏览器会对 overflow: auto 的可滚动容器
+   * 自动显示"抓取（grab）"光标，而 Chrome 不会。
+   * 子菜单在视觉上悬浮于 .menu-bar 正下方，鼠标移到子菜单
+   * 边缘的 padding/border 区域时，会穿透到 .menu-bar 触发
+   * "抓取"光标，与子菜单按钮的 pointer 光标来回切换，造成闪烁。
+   * 在这里强制声明 cursor: default，即可阻断 Edge 的这个行为。
+   */
+  cursor: default;
 }
 
 .menu-bar::-webkit-scrollbar {
@@ -472,6 +480,17 @@ function onTouchEnd() {
   box-shadow: 0 4px 16px rgba(0,0,0,0.4);
   border: 1px solid rgba(255,255,255,0.15);
   margin-top: -2px;
+
+  /*
+   * ✅ Bug 修复②：给子菜单容器本身也声明 cursor: pointer
+   *
+   * 问题根源：子菜单的 .sub-menu-item 按钮有 cursor: pointer，
+   * 但 .sub-menu 容器本身（边缘的 padding、border 区域）没有设置。
+   * 鼠标落在容器边缘时，会向上找父元素的 cursor 属性，
+   * 结果找到了 .menu-bar 的"抓取"光标，造成边缘闪烁。
+   * 这里统一声明 cursor: pointer 后，整个子菜单区域光标一致。
+   */
+  cursor: pointer;
 }
 
 .sub-menu.show {
@@ -512,15 +531,27 @@ function onTouchEnd() {
   display: none;
 }
 
-/* 这是一个隐形的防手抖桥梁，保留它能让你鼠标移向子菜单时更稳定 */
+/*
+ * 这是一个隐形的防手抖桥梁：在父菜单按钮和子菜单之间的空白处
+ * 盖一层透明区域，让鼠标从父菜单"滑向"子菜单时不会触发 mouseleave。
+ */
 .sub-menu::before {
   content: '';
   position: absolute;
-  top: -15px;
+  top: -15px; /* 向上延伸，覆盖父菜单和子菜单之间的间隙 */
   left: 0;
   width: 100%;
   height: 15px;
   background: transparent;
+
+  /*
+   * ✅ Bug 修复③：桥接区域也要统一光标
+   *
+   * 鼠标从父菜单按钮滑向子菜单时，会经过这个伪元素区域。
+   * 如果这里没有 cursor 声明，Edge 同样会触发父元素的"抓取"光标，
+   * 导致鼠标在这段"桥"上闪烁。统一声明 pointer 即可解决。
+   */
+  cursor: pointer;
 }
 
 /* =========================================
