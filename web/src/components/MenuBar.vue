@@ -1,54 +1,52 @@
 <template>
   <Teleport to="body">
-    <Transition name="pop">
-      <div 
-        class="desktop-menu-wrapper" 
-        v-if="isMobileView === false"
-        @mouseenter="handleWrapperMouseEnter"
-        @mouseleave="handleWrapperMouseLeave"
-        :class="{ 'is-expanded': isMenuExpanded }"
-      >
-        
-        <div class="capsule-hint">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;">
-            <line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line>
-          </svg>
-          菜单栏
-        </div>
+    <div 
+      class="desktop-menu-wrapper" 
+      v-if="!isMobileView"
+      @mouseenter="handleWrapperMouseEnter"
+      @mouseleave="handleWrapperMouseLeave"
+      :class="{ 'is-expanded': isMenuExpanded }"
+    >
+      
+      <div class="capsule-hint">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;">
+          <line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
+        菜单栏
+      </div>
 
-        <nav class="menu-bar" ref="menuBarRef" @wheel="handleWheel">
+      <nav class="menu-bar" ref="menuBarRef" @wheel="handleWheel">
+        <div
+          v-for="menu in menus"
+          :key="menu.id"
+          class="menu-item"
+          @mouseenter="showSubMenu(menu.id)"
+          @mouseleave="hideSubMenu(menu.id)"
+        >
+          <button
+            @click="$emit('select', menu)"
+            :class="{active: menu.id === activeId}"
+          >{{ menu.name }}</button>
+          
           <div
-            v-for="menu in menus"
-            :key="menu.id"
-            class="menu-item"
-            @mouseenter="showSubMenu(menu.id)"
-            @mouseleave="hideSubMenu(menu.id)"
+            v-if="menu.subMenus && menu.subMenus.length > 0"
+            class="sub-menu"
+            :class="{ 'show': hoveredMenuId === menu.id }"
           >
             <button
-              @click="$emit('select', menu)"
-              :class="{active: menu.id === activeId}"
-            >{{ menu.name }}</button>
-            
-            <div
-              v-if="menu.subMenus && menu.subMenus.length > 0"
-              class="sub-menu"
-              :class="{ 'show': hoveredMenuId === menu.id }"
-            >
-              <button
-                v-for="subMenu in menu.subMenus"
-                :key="subMenu.id"
-                @click="$emit('select', subMenu, menu)"
-                :class="{active: subMenu.id === activeSubMenuId}"
-                class="sub-menu-item"
-              >{{ subMenu.name }}</button>
-            </div>
+              v-for="subMenu in menu.subMenus"
+              :key="subMenu.id"
+              @click="$emit('select', subMenu, menu)"
+              :class="{active: subMenu.id === activeSubMenuId}"
+              class="sub-menu-item"
+            >{{ subMenu.name }}</button>
           </div>
-        </nav>
-      </div>
-    </Transition>
-    </Teleport>
+        </div>
+      </nav>
+    </div>
+  </Teleport>
 
-  <div class="mobile-menu-header" v-if="isMobileView === true">
+  <div class="mobile-menu-header" v-if="isMobileView">
     <button class="hamburger-btn" @click="drawerOpen = true" aria-label="打开菜单">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
@@ -110,6 +108,7 @@ const emit = defineEmits(['select']);
 const hoveredMenuId = ref(null);
 const menuBarRef = ref(null); 
 
+// 主菜单外框的展开与收起防抖逻辑
 const isMenuExpanded = ref(false); 
 let expandTimeout = null; 
 
@@ -124,21 +123,35 @@ function handleWrapperMouseLeave() {
   }, 250); 
 }
 
-// 解决边缘闪烁的定时器
+// =========================================================================
+// 👇 这里是修复子菜单边缘疯狂闪烁 Bug 的核心代码 👇
+// =========================================================================
+
+// 新增：专门用来存放子菜单定时器的变量（就像一个用来装“关闭闹钟”的盒子）
 let subMenuTimeout = null; 
 
 function showSubMenu(menuId) { 
+  // 【修复关键1】：只要鼠标进来了，就赶紧把之前准备关闭菜单的“闹钟”给停掉
+  // 这样就算手抖了一下又回来了，菜单也不会突然消失
   clearTimeout(subMenuTimeout); 
+  
+  // 正常显示当前鼠标所在的子菜单
   hoveredMenuId.value = menuId; 
 }
 
 function hideSubMenu(menuId) { 
+  // 【修复关键2】：不要立刻关闭菜单，而是设一个 150 毫秒后关闭的“闹钟”
+  // 并且把这个闹钟存进 subMenuTimeout 变量里，以便随时可以被上面的 clearTimeout 撤销
   subMenuTimeout = setTimeout(() => { 
     if (hoveredMenuId.value === menuId) {
       hoveredMenuId.value = null; 
     }
-  }, 150); 
+  }, 150); // 150毫秒能给鼠标离开边缘时的一点点容错时间，提升用户体验
 }
+// =========================================================================
+// 👆 修复结束 👆
+// =========================================================================
+
 
 function handleWheel(e) {
   if (menuBarRef.value) {
@@ -150,8 +163,7 @@ function handleWheel(e) {
   }
 }
 
-// 👇 核心修改：将初始值设为 null，让页面刚加载时“按兵不动”，防止竖排闪烁
-const isMobileView = ref(null);
+const isMobileView = ref(false);
 function checkMobile() { isMobileView.value = window.innerWidth < 768; }
 onMounted(() => { checkMobile(); window.addEventListener('resize', checkMobile); });
 onUnmounted(() => { window.removeEventListener('resize', checkMobile); });
@@ -197,26 +209,8 @@ function onTouchEnd() {
 
 <style scoped>
 /* =========================================
-   👇 新增：Vue 菜单弹出动画 (Pop-in) 的 CSS 👇
+   桌面端：悬浮菜单主框（原样保留）
    ========================================= */
-
-/* 动画执行的整个过程：规定时间和贝塞尔曲线（带有轻微弹性的手感） */
-.pop-enter-active,
-.pop-leave-active {
-  transition: opacity 0.4s ease, transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-/* 动画开始前（以及离开后）的状态：透明且缩小为原本的 0.8 倍 */
-.pop-enter-from,
-.pop-leave-to {
-  opacity: 0;
-  /* 极其关键：必须在这里把 translateX(-50%) 带着，否则菜单动画会从左边飞过来 */
-  transform: translateX(-50%) scale(0.8);
-}
-/* =========================================
-   👆 弹出动画 CSS 结束 👆
-   ========================================= */
-
 .desktop-menu-wrapper {
   position: fixed; 
   top: 16px; 
@@ -303,21 +297,7 @@ function onTouchEnd() {
   pointer-events: auto; 
 }
 
-.menu-bar button { 
-  background: transparent; 
-  border: none; 
-  color: #fff; 
-  font-size: 15px; 
-  font-weight: 500; 
-  padding: 0.4rem 1.2rem; 
-  cursor: pointer; 
-  transition: all 0.3s ease; 
-  border-radius: 8px; 
-  position: relative; 
-  /* 👇 核心修改：将按钮图层提升到 1001，避免被子菜单的透明“防抖桥”遮挡导致无法点击 */
-  z-index: 1001; 
-}
-
+.menu-bar button { background: transparent; border: none; color: #fff; font-size: 15px; font-weight: 500; padding: 0.4rem 1.2rem; cursor: pointer; transition: all 0.3s ease; border-radius: 8px; position: relative;z-index: 1001; }
 .menu-bar button::before { content: ''; position: absolute; bottom: 2px; left: 50%; width: 0; height: 2px; background: #399dff; transition: all 0.3s ease; transform: translateX(-50%); }
 .menu-bar button:hover { color: #399dff; }
 .menu-bar button.active { color: #399dff; }
@@ -337,8 +317,7 @@ function onTouchEnd() {
   min-width: 120px; 
   opacity: 0; 
   visibility: hidden; 
-  transition: all 0.2s ease; 
-  /* 注意这里子菜单（包含防抖桥）的层级是 1000 */
+  transition: all 0.05s ease; 
   z-index: 1000; 
   box-shadow: 0 4px 16px rgba(0,0,0,0.4); 
   border: 1px solid rgba(255,255,255,0.15); 
@@ -383,7 +362,7 @@ function onTouchEnd() {
   display: none; 
 }
 
-/* 这是一个隐形的防手抖桥梁，配合 JS 延时，让鼠标移向子菜单时极其稳定 */
+/* 这是一个隐形的防手抖桥梁，保留它能让你鼠标移向子菜单时更稳定 */
 .sub-menu::before {
   content: '';
   position: absolute;
@@ -395,7 +374,7 @@ function onTouchEnd() {
 }
 
 /* =========================================
-   移动端：顶栏和极致毛玻璃抽屉
+   移动端：顶栏和极致毛玻璃抽屉（原样保留）
    ========================================= */
 .mobile-menu-header { 
   position: fixed; 
