@@ -14,16 +14,6 @@ if [ -d "/app/uploads" ] && [ "$(ls -A /app/uploads 2>/dev/null)" ]; then
     cp -rn /app/uploads/* /app/database/uploads/ 2>/dev/null || true
     echo "[引导] 迁移完成。"
 fi
-chmod +x ./backup.sh
-if [ -n "$GITHUB_TOKEN" ]; then
-    echo "[引导] 正在进行初始数据同步..."
-    ./backup.sh --init
-else
-    echo "[引导] 跳过同步，直接启动。"
-fi
-if [ -n "$GITHUB_TOKEN" ]; then
-    echo "[引导] 开启后台同步服务..."
-    ./backup.sh --monitor &
-fi
+
 echo "[引导] 启动 Node.js 服务..."
 exec node app.js

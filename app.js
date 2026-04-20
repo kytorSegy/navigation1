@@ -5,7 +5,9 @@ const fs = require('fs');
 const config = require('./config');
 const db = require('./db');
 const authMiddleware = require('./routes/authMiddleware');
-const r2 = require('./routes/r2sync');
+
+// 【修改点 1】：引入我们新的全能大管家 sync.js，替代原来的 r2sync.js
+const syncManager = require('./routes/sync');
 
 const menuRoutes = require('./routes/menu');
 const cardRoutes = require('./routes/card');
@@ -33,8 +35,10 @@ app.use(compression());
 app.use('/uploads', async (req, res, next) => {
   const localPath = path.join(UPLOAD_DIR, req.path);
   if (fs.existsSync(localPath)) return next();
-  if (r2.isR2Enabled()) {
-    const ok = await r2.downloadFromR2('uploads' + req.path, localPath);
+  
+  // 【修改点 2】：所有的 r2 调用，全部替换成了 syncManager
+  if (syncManager.isR2Enabled()) {
+    const ok = await syncManager.downloadFromR2('uploads' + req.path, localPath);
     if (ok) return res.sendFile(localPath);
   }
   next();
@@ -52,6 +56,7 @@ const sendIndexHtml = (res) => {
     });
   });
 };
+
 app.get('/', (req, res) => sendIndexHtml(res));
 app.use((req, res, next) => {
   if (req.method === 'GET' && !req.path.startsWith('/api') && !req.path.startsWith('/uploads') && !fs.existsSync(path.join(__dirname, 'web/dist', req.path))) sendIndexHtml(res);
@@ -68,7 +73,8 @@ app.use('/api/users', userRoutes);
 app.use('/api/parse-link', parseRoutes);
 
 app.get('/api/r2/status', authMiddleware, (req, res) => {
-  res.json({ enabled: r2.isR2Enabled(), bucket: config.r2.bucketName||null, publicDomain: config.r2.publicDomain||null });
+  // 【修改点 3】：r2 替换为 syncManager
+  res.json({ enabled: syncManager.isR2Enabled(), bucket: config.r2.bucketName||null, publicDomain: config.r2.publicDomain||null });
 });
 
 // 网络壁纸代理 + R2 双写
@@ -88,7 +94,8 @@ app.get('/api/background', (req, res) => {
       response.pipe(file);
       file.on('finish', () => {
         file.close();
-        r2.uploadToR2(cachePath, `uploads/${fileName}`, response.headers['content-type']||'image/jpeg').catch(()=>{});
+        // 【修改点 4】：r2 替换为 syncManager
+        syncManager.uploadToR2(cachePath, `uploads/${fileName}`, response.headers['content-type']||'image/jpeg').catch(()=>{});
         res.redirect(`/uploads/${fileName}`);
       });
     } else res.redirect(bgUrl);
@@ -106,13 +113,17 @@ app.get('/api/icon-proxy', async (req, res) => {
   const cachePath = path.join(UPLOAD_DIR, fileName);
   const r2Key = `uploads/${fileName}`;
   if (fs.existsSync(cachePath)) return res.redirect(`/uploads/${fileName}`);
-  if (r2.isR2Enabled()) { const ok = await r2.downloadFromR2(r2Key, cachePath); if(ok) return res.redirect(`/uploads/${fileName}`); }
+  
+  // 【修改点 5】：r2 替换为 syncManager
+  if (syncManager.isR2Enabled()) { const ok = await syncManager.downloadFromR2(r2Key, cachePath); if(ok) return res.redirect(`/uploads/${fileName}`); }
+  
   const client = iconUrl.startsWith('https') ? https : http;
   client.get(iconUrl, { timeout: 5000 }, (response) => {
     if (response.statusCode === 200) {
       const file = fs.createWriteStream(cachePath);
       response.pipe(file);
-      file.on('finish', () => { file.close(); r2.uploadToR2(cachePath,r2Key,response.headers['content-type']||'image/png').catch(()=>{}); res.redirect(`/uploads/${fileName}`); });
+      // 【修改点 6】：r2 替换为 syncManager
+      file.on('finish', () => { file.close(); syncManager.uploadToR2(cachePath,r2Key,response.headers['content-type']||'image/png').catch(()=>{}); res.redirect(`/uploads/${fileName}`); });
     } else res.redirect(iconUrl);
   }).on('error', () => res.redirect(iconUrl));
 });
@@ -133,7 +144,8 @@ app.get('/api/config', (req, res) => {
       bgUrl = '/api/background?url=' + encodeURIComponent(bgUrl);
     }
 
-    res.json({ title:titleStr, background:bgUrl, bg_type:bgType, r2_enabled:r2.isR2Enabled() });
+    // 【修改点 7】：r2 替换为 syncManager
+    res.json({ title:titleStr, background:bgUrl, bg_type:bgType, r2_enabled:syncManager.isR2Enabled() });
   });
 });
 
@@ -155,12 +167,47 @@ app.post('/api/config/settings', authMiddleware, (req, res) => {
   function done(err) { if(err)hasError=true; completed++; if(completed===updates.length){if(hasError)return res.status(500).json({error:'部分设置保存失败'});res.json({success:true});} }
 });
 
+// ==========================================
+// 【修改点 8】新增：SSE 接口，给前端建立热更新“电话线”
+// ==========================================
+app.get('/api/stream', (req, res) => {
+  // 设置 SSE (Server-Sent Events) 必需的 HTTP 响应头
+  // 这样浏览器就知道这是一个长连接，而不是普通的网页请求
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders(); // 立即把头部发送给浏览器
+
+  // 告诉前端：“电话线已经连通了！”
+  res.write('data: {"status": "connected"}\n\n');
+
+  // 定义一个监听函数：当大管家发现更新时，就通过电话线通知浏览器
+  const updateListener = () => {
+    // 写入 action: reload 指令给前端
+    res.write('data: {"action": "reload"}\n\n');
+  };
+  
+  // 监听我们在 sync.js 里触发的 'update_needed' 事件
+  syncManager.syncEvents.on('update_needed', updateListener);
+
+  // 重要：如果用户关闭了浏览器页面，我们需要把这根电话线拔掉，防止服务器内存泄漏
+  req.on('close', () => {
+    syncManager.syncEvents.removeListener('update_needed', updateListener);
+    res.end();
+  });
+});
+
 // 启动服务器，设置超时适应大文件上传
 const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is running at http://0.0.0.0:${PORT}`);
-  console.log(`[R2] 同步状态: ${r2.isR2Enabled() ? '已启用' : '未启用 (配置 R2 环境变量即可开启)'}`);
-  r2.startWallpaperSync(db);
+  
+  // 【修改点 9】：r2 替换为 syncManager
+  console.log(`[R2] 同步状态: ${syncManager.isR2Enabled() ? '已启用' : '未启用 (配置 R2 环境变量即可开启)'}`);
+  
+  // 【修改点 10】：启动全能同步大管家（接管 Git 与 R2），替换了原来的 startWallpaperSync
+  syncManager.startUnifiedSync(db);
 });
+
 // 10 分钟超时，避免大文件上传时 Bad Gateway
 server.timeout = 600000;
 server.keepAliveTimeout = 620000;

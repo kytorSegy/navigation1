@@ -288,14 +288,81 @@ watch(searchQuery,(v)=>{
   if(selectedEngine.value.name==='site'){clearTimeout(searchTimer);searchTimer=setTimeout(async()=>{try{const r=await searchCards(v.trim());if(r.data.length>0){cards.value=r.data;activeMenu.value=null;activeSubMenu.value=null;}else cards.value=[];}catch{}},100);}
 });
 
+// 👇 核心修改区域：全新的 onMounted 生命周期 👇
 onMounted(async()=>{
-  try{const c=await getConfig();if(c.data.background)globalBackground.value=c.data.background;if(c.data.bg_type)globalBgType.value=c.data.bg_type;if(c.data.title)document.title=c.data.title;}catch(e){}
-  await loadLocalWallpaper(); setupTouchPlay();
-  const res=await getMenus();menus.value=res.data;
-  if(menus.value.length){activeMenu.value=menus.value[0];loadCards();}
-  const adRes=await getAds();leftAds.value=adRes.data.filter(a=>a.position==='left');rightAds.value=adRes.data.filter(a=>a.position==='right');
-  const friendRes=await getFriends();friendLinks.value=friendRes.data;
+  // --- 1. 页面初次加载时拉取数据（原样保留） ---
+  try {
+    const c = await getConfig();
+    if (c.data.background) globalBackground.value = c.data.background;
+    if (c.data.bg_type) globalBgType.value = c.data.bg_type;
+    if (c.data.title) document.title = c.data.title;
+  } catch(e) {}
+  
+  await loadLocalWallpaper(); 
+  setupTouchPlay();
+  
+  const res = await getMenus();
+  menus.value = res.data;
+  if (menus.value.length) {
+    activeMenu.value = menus.value[0];
+    loadCards();
+  }
+  
+  const adRes = await getAds();
+  leftAds.value = adRes.data.filter(a => a.position === 'left');
+  rightAds.value = adRes.data.filter(a => a.position === 'right');
+  
+  const friendRes = await getFriends();
+  friendLinks.value = friendRes.data;
+
+  // --- 2. 新增：开启大喇叭监听，实现无感热重载 ---
+  const eventSource = new EventSource('/api/stream');
+  
+  eventSource.onmessage = async (event) => {
+    const data = JSON.parse(event.data);
+    if (data.action === 'reload') {
+      console.log('✨ 收到云端数据更新指令，正在丝滑无感替换内容...');
+      
+      try {
+        // 第一阶段：无感更新全局壁纸和标题
+        const c = await getConfig();
+        if (c.data.background) globalBackground.value = c.data.background;
+        if (c.data.bg_type) globalBgType.value = c.data.bg_type;
+        if (c.data.title) document.title = c.data.title;
+        
+        // 关键判定：如果访客没有使用自己的自定义壁纸，则让网页背景瞬间切换！
+        if (localStorage.getItem('visitor_use_local_db') !== 'true' && !localStorage.getItem('visitor_bg')) {
+          customBackground.value = globalBackground.value;
+          customBgType.value = globalBgType.value;
+        }
+
+        // 第二阶段：无感更新菜单和当前展示的卡片
+        const newMenusRes = await getMenus();
+        menus.value = newMenusRes.data;
+        if (menus.value.length) {
+          // 如果当前所在的菜单被删除了，就跳回第一个菜单；否则留在原地
+          if (!activeMenu.value || !menus.value.find(m => m.id === activeMenu.value.id)) {
+            activeMenu.value = menus.value[0];
+            activeSubMenu.value = null;
+          }
+          loadCards(); // 重新向服务器请求最新卡片
+        }
+
+        // 第三阶段：无感更新侧边广告和底部友情链接
+        const newAdRes = await getAds();
+        leftAds.value = newAdRes.data.filter(a => a.position === 'left');
+        rightAds.value = newAdRes.data.filter(a => a.position === 'right');
+        
+        const newFriendRes = await getFriends();
+        friendLinks.value = newFriendRes.data;
+
+      } catch (e) {
+        console.error('无感更新失败:', e);
+      }
+    }
+  };
 });
+// 👆 核心修改区域结束 👆
 
 async function selectMenu(menu,parentMenu=null){if(parentMenu){activeMenu.value=parentMenu;activeSubMenu.value=menu;}else{activeMenu.value=menu;activeSubMenu.value=null;}loadCards();}
 async function loadCards(){if(!activeMenu.value)return;const r=await getCards(activeMenu.value.id,activeSubMenu.value?.id);cards.value=r.data;}
