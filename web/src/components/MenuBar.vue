@@ -297,7 +297,7 @@ function onTouchEnd() {
   pointer-events: auto; 
 }
 
-.menu-bar button { background: transparent; border: none; color: #fff; font-size: 15px; font-weight: 500; padding: 0.4rem 1.2rem; cursor: pointer; transition: all 0.3s ease; border-radius: 8px; position: relative; }
+.menu-bar button { background: transparent; border: none; color: #fff; font-size: 15px; font-weight: 500; padding: 0.4rem 1.2rem; cursor: pointer; transition: all 0.3s ease; border-radius: 8px; position: relative;z-index: 1001; }
 .menu-bar button::before { content: ''; position: absolute; bottom: 2px; left: 50%; width: 0; height: 2px; background: #399dff; transition: all 0.3s ease; transform: translateX(-50%); }
 .menu-bar button:hover { color: #399dff; }
 .menu-bar button.active { color: #399dff; }
@@ -317,7 +317,7 @@ function onTouchEnd() {
   min-width: 120px; 
   opacity: 0; 
   visibility: hidden; 
-  transition: all 0.2s ease; 
+  transition: all 0.05s ease; 
   z-index: 1000; 
   box-shadow: 0 4px 16px rgba(0,0,0,0.4); 
   border: 1px solid rgba(255,255,255,0.15); 
