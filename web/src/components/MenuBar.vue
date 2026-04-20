@@ -340,7 +340,8 @@ function onTouchEnd() {
    * max-width 继续负责展开动画（过渡到 calc(100vw - 120px)），
    * 两者不冲突：width 给出兜底尺寸，max-width 做展开上限。
    */
-  width: 130px;
+  
+  min-width: 130px;
   max-width: 130px;
   transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1),
               max-width 0.5s cubic-bezier(0.4, 0, 0.2, 1),
