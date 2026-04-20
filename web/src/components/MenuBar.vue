@@ -108,7 +108,7 @@ const emit = defineEmits(['select']);
 const hoveredMenuId = ref(null);
 const menuBarRef = ref(null); 
 
-// 这里保留了修复闪烁Bug的JS防抖逻辑
+// 主菜单外框的展开与收起防抖逻辑
 const isMenuExpanded = ref(false); 
 let expandTimeout = null; 
 
@@ -123,8 +123,35 @@ function handleWrapperMouseLeave() {
   }, 250); 
 }
 
-function showSubMenu(menuId) { hoveredMenuId.value = menuId; }
-function hideSubMenu(menuId) { setTimeout(() => { if (hoveredMenuId.value === menuId) hoveredMenuId.value = null; }, 100); }
+// =========================================================================
+// 👇 这里是修复子菜单边缘疯狂闪烁 Bug 的核心代码 👇
+// =========================================================================
+
+// 新增：专门用来存放子菜单定时器的变量（就像一个用来装“关闭闹钟”的盒子）
+let subMenuTimeout = null; 
+
+function showSubMenu(menuId) { 
+  // 【修复关键1】：只要鼠标进来了，就赶紧把之前准备关闭菜单的“闹钟”给停掉
+  // 这样就算手抖了一下又回来了，菜单也不会突然消失
+  clearTimeout(subMenuTimeout); 
+  
+  // 正常显示当前鼠标所在的子菜单
+  hoveredMenuId.value = menuId; 
+}
+
+function hideSubMenu(menuId) { 
+  // 【修复关键2】：不要立刻关闭菜单，而是设一个 150 毫秒后关闭的“闹钟”
+  // 并且把这个闹钟存进 subMenuTimeout 变量里，以便随时可以被上面的 clearTimeout 撤销
+  subMenuTimeout = setTimeout(() => { 
+    if (hoveredMenuId.value === menuId) {
+      hoveredMenuId.value = null; 
+    }
+  }, 150); // 150毫秒能给鼠标离开边缘时的一点点容错时间，提升用户体验
+}
+// =========================================================================
+// 👆 修复结束 👆
+// =========================================================================
+
 
 function handleWheel(e) {
   if (menuBarRef.value) {
@@ -277,15 +304,14 @@ function onTouchEnd() {
 .menu-bar button.active::before { width: 40%; }
 
 /* =========================================
-   👇 这里是为你搬运过来的：瞬间模糊且带有位移的子菜单样式 👇
+   子菜单样式：瞬间模糊且带有位移
    ========================================= */
 .sub-menu { 
   position: absolute; 
-  top: 100%; /* 使用你提供的定位 */
+  top: 100%; 
   left: 50%; 
   transform: translateX(-50%); 
   
-  /* 最关键的：没有深色背景，直接上模糊滤镜，实现一出来就模糊 */
   backdrop-filter: blur(8px); 
   border-radius: 6px; 
   min-width: 120px; 
@@ -301,7 +327,6 @@ function onTouchEnd() {
 .sub-menu.show { 
   opacity: 1; 
   visibility: visible; 
-  /* 带有极轻微的2px下移视觉效果，很高级的障眼法 */
   transform: translateX(-50%) translateY(2px); 
 }
 
@@ -347,9 +372,6 @@ function onTouchEnd() {
   height: 15px; 
   background: transparent; 
 }
-/* =========================================
-   👆 子菜单样式结束 👆
-   ========================================= */
 
 /* =========================================
    移动端：顶栏和极致毛玻璃抽屉（原样保留）
