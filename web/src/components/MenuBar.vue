@@ -327,8 +327,24 @@ function onTouchEnd() {
   display: flex;
   align-items: center;
   justify-content: center;
+
+  /*
+   * ✅ Bug 修复：补上 width: 130px
+   *
+   * 问题根源：只有 max-width 没有 width，父元素的实际宽度
+   * 由流内子元素（.menu-bar）决定。而 .capsule-hint 是
+   * position: absolute，不参与父元素宽度计算。
+   * 页面首次加载时布局尚未稳定，父框会塌缩，导致包不住文字。
+   *
+   * 修复方案：明确设置 width: 130px 作为初始宽度保障。
+   * max-width 继续负责展开动画（过渡到 calc(100vw - 120px)），
+   * 两者不冲突：width 给出兜底尺寸，max-width 做展开上限。
+   */
+  width: 130px;
   max-width: 130px;
-  transition: max-width 0.5s cubic-bezier(0.4, 0, 0.2, 1), border-radius 0.3s ease;
+  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+              max-width 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+              border-radius 0.3s ease;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
 }
 
@@ -345,6 +361,8 @@ function onTouchEnd() {
 }
 
 .desktop-menu-wrapper.is-expanded {
+  /* 展开时：width 跟着 max-width 一起撑开到最大可用宽度 */
+  width: calc(100vw - 120px);
   max-width: calc(100vw - 120px);
   border-radius: 12px;
 }
