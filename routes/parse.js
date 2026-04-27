@@ -3,67 +3,97 @@ const express = require('express');
 const router = express.Router();
 const http = require('http');
 const https = require('https');
+const zlib = require('zlib'); // [!] 引入 Node.js 核心模块 zlib，用来给网页数据解压缩
 
-// 智能链接解析：抓取目标网站标题和 favicon
+// 封装一个极其强壮的“网页爬取工具函数”
+function fetchHtml(targetUrl) {
+  return new Promise((resolve, reject) => {
+    const parsed = new URL(targetUrl);
+    const protocol = parsed.protocol === 'https:' ? https : http;
+    
+    // 设置请求参数
+    const options = {
+      headers: {
+        // 伪装成真实的 Windows 电脑 Chrome 浏览器
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9',
+        // 告诉服务器：请给我发送压缩过的数据，这样下载更快
+        'Accept-Encoding': 'gzip, deflate' 
+      },
+      timeout: 8000 // 超时时间 8 秒
+    };
+
+    const req = protocol.get(targetUrl, options, (res) => {
+      // 1. 处理网站重定向 (比如 301/302 状态码，旧网址跳转新网址)
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        try {
+          const redirectUrl = new URL(res.headers.location, targetUrl).href;
+          // 遇到跳转，直接递归调用自己，去抓取新网址的代码
+          return resolve(fetchHtml(redirectUrl)); 
+        } catch (e) {
+          return resolve('');
+        }
+      }
+
+      // 如果不是 200 正常返回，说明网页打不开
+      if (res.statusCode !== 200) {
+        return resolve('');
+      }
+
+      // 2. 接收数据块 (此时收到的可能是被压缩的二进制数据)
+      let chunks = [];
+      res.on('data', chunk => chunks.push(chunk));
+      
+      res.on('end', () => {
+        // 把所有数据块拼接成一个完整的 Buffer (二进制流)
+        let buffer = Buffer.concat(chunks);
+        // 查看服务器是通过什么方式压缩的
+        let encoding = res.headers['content-encoding'];
+        let html = '';
+        
+        try {
+          // 3. 核心步骤：像浏览器一样智能解压！
+          if (encoding === 'gzip') {
+            html = zlib.gunzipSync(buffer).toString(); // 解压 Gzip 格式
+          } else if (encoding === 'deflate') {
+            html = zlib.inflateSync(buffer).toString(); // 解压 Deflate 格式
+          } else {
+            html = buffer.toString(); // 如果没压缩，直接转成普通文本
+          }
+        } catch (e) {
+          // 万一解压失败，强行作为普通文本读取
+          html = buffer.toString(); 
+        }
+        
+        resolve(html); // 将健康的、人类可读的 HTML 源代码交出去
+      });
+    });
+    
+    // 遇到请求错误或超时，直接返回空内容，防止程序崩溃
+    req.on('error', reject);
+    req.on('timeout', () => { req.destroy(); resolve(''); });
+  });
+}
+
+// 智能链接解析路由：抓取目标网站标题和 favicon
 router.get('/', async (req, res) => {
-  // 获取前端传过来的网址
   const { url } = req.query;
   
-  // 检查网址是否为空
   if (!url || !url.trim()) {
     return res.status(400).json({ error: '请提供网址' });
   }
 
-  // 去除网址前后的空格
   let targetUrl = url.trim();
-  // 补充协议头：如果用户只输入了 www.baidu.com，默认帮它加上 https://
   if (!targetUrl.startsWith('http')) {
     targetUrl = 'https://' + targetUrl;
   }
 
   try {
-    // 使用 URL 对象解析网址，方便后续拼接路径
     const parsed = new URL(targetUrl);
-    // 判断该用 http 还是 https 模块来发起请求
-    const protocol = parsed.protocol === 'https:' ? https : http;
+    
+    // 调用我们上面写好的智能爬取函数获取源代码
+    const html = await fetchHtml(targetUrl);
 
-    // 发起网络请求，获取目标网站的 HTML 源代码
-    const html = await new Promise((resolve, reject) => {
-      const req = protocol.get(targetUrl, { 
-        headers: { 
-          // 伪装请求头：假装自己是 Chrome 浏览器，防止被某些网站的防火墙拦截
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml'
-        },
-        timeout: 8000 // 8秒超时时间
-      }, (response) => {
-        // 处理网站重定向 (比如 301/302 状态码)，跟随跳转到新的网址
-        if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
-          const redirectUrl = new URL(response.headers.location, targetUrl).href;
-          const redirectProtocol = redirectUrl.startsWith('https') ? https : http;
-          redirectProtocol.get(redirectUrl, { timeout: 8000 }, (r2) => {
-            let data = '';
-            r2.on('data', chunk => data += chunk);
-            r2.on('end', () => resolve(data));
-            r2.on('error', reject);
-          }).on('error', reject);
-          return;
-        }
-        // 如果网页状态码不是 200 (正常)，返回空
-        if (response.statusCode !== 200) {
-          return resolve('');
-        }
-        // 把接收到的网页数据块拼接到一起
-        let data = '';
-        response.on('data', chunk => data += chunk);
-        response.on('end', () => resolve(data));
-      });
-      // 遇到网络错误或超时，结束请求并返回空
-      req.on('error', reject);
-      req.on('timeout', () => { req.destroy(); resolve(''); });
-    });
-
-    // 如果获取不到 HTML 源代码，返回默认的图标
     if (!html) {
       return res.json({ 
         success: false, 
@@ -74,32 +104,28 @@ router.get('/', async (req, res) => {
     }
 
     // ============================================
-    // 1. 提取网页标题 (Title)
+    // 1. 提取网页标题
     // ============================================
     let title = '';
-    // 使用正则匹配 <title> 标签，[\s\S]*? 可以匹配带换行符的内容
     const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
     if (titleMatch) {
-      // 去除提取出来的标题中的回车换行，并把多个连续空格变成一个空格
       title = titleMatch[1].replace(/[\r\n]+/g, '').trim().replace(/\s+/g, ' ').substring(0, 100);
     }
 
     // ============================================
-    // 2. 提取网站图标 (Favicon/Icon)
+    // 2. 提取网站图标
     // ============================================
     let icon = '';
-    // 找出网页中所有的 <link> 标签
+    // 把 HTML 里面所有的 <link> 标签找出来
     const linkTags = html.match(/<link[^>]+>/gi) || [];
     
-    // 遍历每一个被找到的 <link> 标签
     for (const tag of linkTags) {
-      // 检查里面是否有 rel="icon" 或 rel="shortcut icon" 或 rel="apple-touch-icon"
-      if (/rel=["']?(?:shortcut )?icon["']?/i.test(tag) || /rel=["']?apple-touch-icon["']?/i.test(tag)) {
-        // 如果有，提取出 href="..." 里面的链接路径
+      // 兼容匹配 rel="icon", rel="shortcut icon", rel="apple-touch-icon" 甚至是单引号的情况
+      if (/rel=(?:["']?(?:shortcut\s+)?icon["']?|["']?apple-touch-icon["']?)/i.test(tag)) {
         const hrefMatch = tag.match(/href=["']([^"']+)["']/i);
         if (hrefMatch) {
           icon = hrefMatch[1]; 
-          break; // 找到了就跳出循环
+          break;
         }
       }
     }
@@ -109,17 +135,12 @@ router.get('/', async (req, res) => {
     // ============================================
     if (icon) {
       try {
-        // 使用 URL 对象，智能地把相对路径（例如 /logo.png）和原网址合并成绝对路径
         icon = new URL(icon, targetUrl).href;
-      } catch (e) {
-        // 如果合并失败，保持原样
-      }
+      } catch (e) {}
     } else {
-      // 如果网页里没写图标代码，默认猜它在域名根目录下的 favicon.ico
       icon = parsed.origin + '/favicon.ico';
     }
 
-    // 最终将成功的数据返回给前端
     res.json({
       success: true,
       title: title || '',
@@ -128,7 +149,7 @@ router.get('/', async (req, res) => {
     });
 
   } catch (err) {
-    // 发生系统级别错误时的降级方案
+    // 解析过程出错的后备方案
     let defaultIcon = '';
     try {
       const p = new URL(targetUrl.startsWith('http') ? targetUrl : 'https://' + targetUrl);
