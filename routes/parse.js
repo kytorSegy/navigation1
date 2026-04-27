@@ -35,7 +35,7 @@ router.get('/', async (req, res) => {
         if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
           const redirectUrl = new URL(response.headers.location, targetUrl).href;
           const redirectProtocol = redirectUrl.startsWith('https') ? https : http;
-          redirectProtocol.get(redirectUrl, { timeout: 8000 }, (r2) => {
+          redirectProtocol.get(redirectUrl, { timeout: 1500 }, (r2) => {
             let data = '';
             r2.on('data', chunk => data += chunk);
             r2.on('end', () => resolve(data));
