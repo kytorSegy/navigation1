@@ -798,6 +798,11 @@ function setTheme(nextTheme) {
   background: #f5f6fa;
 }
 
+.light-theme .admin-main,
+.light-theme .admin-content {
+  background: #f5f6fa;
+}
+
 .light-theme .admin-sider {
   background: #ffffff;
   backdrop-filter: none;
@@ -846,7 +851,7 @@ function setTheme(nextTheme) {
 .light-theme .welcome-card {
   background: #ffffff;
   border: 1.5px solid #e3e6ef;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 6px 18px rgba(31, 42, 68, 0.06);
 }
 
 .light-theme .welcome-icon {
@@ -1147,7 +1152,7 @@ function setTheme(nextTheme) {
 .admin-layout.light-theme :deep(.ad-add-row) {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
   border-color: transparent !important;
-  box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3) !important;
+  box-shadow: 0 10px 24px rgba(102, 126, 234, 0.18) !important;
 }
 
 .admin-layout.light-theme :deep(.menu-header .page-title),
@@ -1199,7 +1204,22 @@ function setTheme(nextTheme) {
   background: #ffffff !important;
   color: #1f2a44 !important;
   border-color: #e3e6ef !important;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06) !important;
+  box-shadow: 0 6px 18px rgba(31, 42, 68, 0.06) !important;
+}
+
+.admin-layout.light-theme :deep(.card-table),
+.admin-layout.light-theme :deep(.card-table tbody),
+.admin-layout.light-theme :deep(.card-table tr),
+.admin-layout.light-theme :deep(.card-table td),
+.admin-layout.light-theme :deep(.friend-table),
+.admin-layout.light-theme :deep(.friend-table tbody),
+.admin-layout.light-theme :deep(.friend-table tr),
+.admin-layout.light-theme :deep(.friend-table td),
+.admin-layout.light-theme :deep(.ad-table),
+.admin-layout.light-theme :deep(.ad-table tbody),
+.admin-layout.light-theme :deep(.ad-table tr),
+.admin-layout.light-theme :deep(.ad-table td) {
+  background: #ffffff !important;
 }
 
 .admin-layout.light-theme :deep(.card-table th),
@@ -1256,6 +1276,14 @@ function setTheme(nextTheme) {
 
 .admin-layout.light-theme :deep(.selected-row) {
   background: #eef2ff !important;
+}
+
+.admin-layout.light-theme :deep(.ghost),
+.admin-layout.light-theme :deep(.sortable-drag),
+.admin-layout.light-theme :deep(.sortable-chosen) {
+  background: #f5f7fa !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
 .admin-layout.light-theme :deep(.search-btn),
