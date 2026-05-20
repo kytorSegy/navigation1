@@ -781,45 +781,96 @@ function setTheme(nextTheme) {
 }
 
 .light-theme {
-  --admin-bg: #eef4fb;
-  --admin-bg-soft: #f7faff;
-  --admin-panel: rgba(255, 255, 255, 0.86);
+  --admin-bg: #f5f6fa;
+  --admin-bg-soft: #ffffff;
+  --admin-panel: #ffffff;
   --admin-panel-strong: #ffffff;
-  --admin-panel-muted: #f2f6fc;
-  --admin-border: rgba(92, 120, 163, 0.18);
-  --admin-border-strong: rgba(75, 119, 201, 0.28);
-  --admin-text: #18263b;
-  --admin-text-soft: #5f7291;
-  --admin-primary: #4d8dff;
-  --admin-primary-strong: #2f6df1;
-  --admin-danger: #e46a7d;
-  --admin-success: #18a97f;
-  --admin-shadow: 0 18px 45px rgba(74, 101, 145, 0.16);
-  background:
-    radial-gradient(circle at top left, rgba(77, 141, 255, 0.14), transparent 24%),
-    radial-gradient(circle at 85% 15%, rgba(24, 169, 127, 0.08), transparent 20%),
-    linear-gradient(180deg, #eef4fb 0%, #f7faff 100%);
+  --admin-panel-muted: #f8f9fc;
+  --admin-border: #e3e6ef;
+  --admin-border-strong: #cfd7ea;
+  --admin-text: #1f2a44;
+  --admin-text-soft: #5d6f91;
+  --admin-primary: #3f8cff;
+  --admin-primary-strong: #2d72f3;
+  --admin-danger: #f08d98;
+  --admin-success: #1abc9c;
+  --admin-shadow: 0 10px 30px rgba(31, 42, 68, 0.1);
+  background: #f5f6fa;
 }
 
 .light-theme .admin-sider {
-  background: rgba(248, 251, 255, 0.88);
-  box-shadow: 10px 0 30px rgba(122, 146, 185, 0.12);
+  background: #ffffff;
+  backdrop-filter: none;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.06);
+  border-right: 1px solid #edf0f6;
 }
 
 .light-theme .admin-header {
-  background: rgba(245, 249, 255, 0.86);
+  background: #ffffff;
+  backdrop-filter: none;
+  border-bottom: 1px solid #e3e6ef;
+}
+
+.light-theme .logo {
+  color: #1d4fa3;
+}
+
+.light-theme .logo.clickable:hover {
+  color: #176efa;
+  text-shadow: none;
+}
+
+.light-theme .menu-list li {
+  color: #2f3c58;
+}
+
+.light-theme .menu-list li:hover {
+  background: #f3f7ff;
+  color: #2566d8;
+}
+
+.light-theme .menu-list li.active {
+  background: #eaf1ff;
+  border-left-color: #2566d8;
+  color: #2566d8;
+}
+
+.light-theme .admin-copyright {
+  color: #5d6f91;
+}
+
+.light-theme .footer-link {
+  color: #2566d8;
 }
 
 .light-theme .welcome-card {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(242, 247, 255, 0.96));
+  background: #ffffff;
+  border: 1.5px solid #e3e6ef;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+}
+
+.light-theme .welcome-icon {
+  background: #f5f6fa;
+  color: #1abc9c;
+}
+
+.light-theme .welcome-label {
+  color: #2f3c58;
 }
 
 .light-theme .theme-switch {
-  background: rgba(77, 141, 255, 0.05);
+  background: #f5f7fb;
+  border-color: #dbe3f2;
 }
 
 .light-theme .theme-btn:hover {
-  background: rgba(77, 141, 255, 0.12);
+  background: #eaf1ff;
+  color: #2566d8;
+}
+
+.light-theme .theme-btn.active {
+  color: #ffffff;
+  box-shadow: none;
 }
 
 @media (max-width: 900px) {
@@ -1094,7 +1145,9 @@ function setTheme(nextTheme) {
 .admin-layout.light-theme :deep(.menu-header),
 .admin-layout.light-theme :deep(.card-header),
 .admin-layout.light-theme :deep(.ad-add-row) {
-  background: linear-gradient(135deg, rgba(228, 238, 255, 0.96), rgba(241, 247, 255, 0.98)) !important;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  border-color: transparent !important;
+  box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3) !important;
 }
 
 .admin-layout.light-theme :deep(.menu-content),
@@ -1107,13 +1160,17 @@ function setTheme(nextTheme) {
 .admin-layout.light-theme :deep(.card-filter-add),
 .admin-layout.light-theme :deep(.advanced-section),
 .admin-layout.light-theme :deep(.modal) {
-  background: rgba(255, 255, 255, 0.9) !important;
+  background: #ffffff !important;
+  color: #1f2a44 !important;
+  border-color: #e3e6ef !important;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06) !important;
 }
 
 .admin-layout.light-theme :deep(.card-table th),
 .admin-layout.light-theme :deep(.friend-table th),
 .admin-layout.light-theme :deep(.ad-table th) {
-  background: rgba(239, 245, 255, 0.96) !important;
+  background: #f5f7fa !important;
+  color: #222222 !important;
 }
 
 .admin-layout.light-theme :deep(.input),
@@ -1125,7 +1182,9 @@ function setTheme(nextTheme) {
 .admin-layout.light-theme :deep(input[type='text']),
 .admin-layout.light-theme :deep(input[type='password']),
 .admin-layout.light-theme :deep(input[type='url']) {
-  background: rgba(248, 251, 255, 0.96) !important;
+  background: #ffffff !important;
+  color: #222222 !important;
+  border-color: #d0d7e2 !important;
 }
 
 .admin-layout.light-theme :deep(.btn-outline),
@@ -1134,6 +1193,49 @@ function setTheme(nextTheme) {
 .admin-layout.light-theme :deep(.clear-search-btn),
 .admin-layout.light-theme :deep(.btn-cancel-select),
 .admin-layout.light-theme :deep(.retry-btn) {
-  background: rgba(241, 246, 255, 0.96) !important;
+  background: #f8f9fa !important;
+  color: #2b2b2b !important;
+  border-color: #dee2e6 !important;
+}
+
+.admin-layout.light-theme :deep(.page-title),
+.admin-layout.light-theme :deep(.section-title),
+.admin-layout.light-theme :deep(.sub-menu-title),
+.admin-layout.light-theme :deep(.form-group label),
+.admin-layout.light-theme :deep(.hint),
+.admin-layout.light-theme :deep(.move-preview p),
+.admin-layout.light-theme :deep(.empty-state p),
+.admin-layout.light-theme :deep(.empty-sub-menu p),
+.admin-layout.light-theme :deep(.menu-tag) {
+  color: #5d6f91 !important;
+}
+
+.admin-layout.light-theme :deep(.menu-item:hover),
+.admin-layout.light-theme :deep(.sub-menu-item:hover),
+.admin-layout.light-theme :deep(.card-table tr:hover td),
+.admin-layout.light-theme :deep(.friend-table tr:hover td),
+.admin-layout.light-theme :deep(.ad-table tr:hover td) {
+  background: #f8fafc !important;
+}
+
+.admin-layout.light-theme :deep(.selected-row) {
+  background: #eef2ff !important;
+}
+
+.admin-layout.light-theme :deep(.search-btn),
+.admin-layout.light-theme :deep(.btn),
+.admin-layout.light-theme :deep(.save-btn),
+.admin-layout.light-theme :deep(.cache-btn),
+.admin-layout.light-theme :deep(.btn-move),
+.admin-layout.light-theme :deep(.type-btn.active) {
+  background: #399dff !important;
+  color: #ffffff !important;
+}
+
+.admin-layout.light-theme :deep(.btn-danger),
+.light-theme .btn.logout-btn {
+  background: #fbe7ea !important;
+  color: #ff6b6b !important;
+  border-color: #f6cbd1 !important;
 }
 </style>
