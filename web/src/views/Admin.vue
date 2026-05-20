@@ -39,7 +39,7 @@
     </div>
   </div>
 
-  <div v-else class="admin-layout">
+  <div v-else class="admin-layout" :class="{ 'light-theme': theme === 'light' }">
     <aside class="admin-sider" :class="{ open: siderOpen }" @click.self="closeSider">
       <div class="logo clickable" @click="openPage('welcome')">Admin</div>
       <ul class="menu-list">
@@ -56,6 +56,22 @@
         <button class="menu-toggle" @click="toggleSider">☰</button>
         <div class="header-title">{{ pageTitle }}</div>
         <div class="header-actions">
+          <div class="theme-switch" aria-label="主题切换">
+            <button
+              class="theme-btn"
+              :class="{ active: theme === 'dark' }"
+              @click="setTheme('dark')"
+            >
+              深色
+            </button>
+            <button
+              class="theme-btn"
+              :class="{ active: theme === 'light' }"
+              @click="setTheme('light')"
+            >
+              浅色
+            </button>
+          </div>
           <span class="home-icon" @click="goHome" title="进入首页">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
               <path d="M3 10.5L12 4l9 6.5V20a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1v-4h-4v4a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V10.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -128,6 +144,7 @@ const loading = ref(false);
 const loginError = ref('');
 const showPassword = ref(false);
 const siderOpen = ref(false);
+const theme = ref(localStorage.getItem('admin_theme') || 'dark');
 
 const pageTitle = computed(() => {
   switch (page.value) {
@@ -281,6 +298,11 @@ function closeSider() {
 function openPage(nextPage) {
   page.value = nextPage;
   closeSider();
+}
+
+function setTheme(nextTheme) {
+  theme.value = nextTheme;
+  localStorage.setItem('admin_theme', nextTheme);
 }
 </script>
 
@@ -554,6 +576,39 @@ function openPage(nextPage) {
   gap: 8px;
 }
 
+.theme-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--admin-border);
+}
+
+.theme-btn {
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--admin-text-soft);
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.theme-btn:hover {
+  color: var(--admin-text);
+  background: rgba(105, 168, 255, 0.08);
+}
+
+.theme-btn.active {
+  background: linear-gradient(135deg, var(--admin-primary-strong), var(--admin-primary));
+  color: #08111d;
+  box-shadow: 0 10px 24px rgba(61, 124, 255, 0.18);
+}
+
 .home-icon {
   display: flex;
   align-items: center;
@@ -723,6 +778,48 @@ function openPage(nextPage) {
 
 .menu-toggle {
   display: none;
+}
+
+.light-theme {
+  --admin-bg: #eef4fb;
+  --admin-bg-soft: #f7faff;
+  --admin-panel: rgba(255, 255, 255, 0.86);
+  --admin-panel-strong: #ffffff;
+  --admin-panel-muted: #f2f6fc;
+  --admin-border: rgba(92, 120, 163, 0.18);
+  --admin-border-strong: rgba(75, 119, 201, 0.28);
+  --admin-text: #18263b;
+  --admin-text-soft: #5f7291;
+  --admin-primary: #4d8dff;
+  --admin-primary-strong: #2f6df1;
+  --admin-danger: #e46a7d;
+  --admin-success: #18a97f;
+  --admin-shadow: 0 18px 45px rgba(74, 101, 145, 0.16);
+  background:
+    radial-gradient(circle at top left, rgba(77, 141, 255, 0.14), transparent 24%),
+    radial-gradient(circle at 85% 15%, rgba(24, 169, 127, 0.08), transparent 20%),
+    linear-gradient(180deg, #eef4fb 0%, #f7faff 100%);
+}
+
+.light-theme .admin-sider {
+  background: rgba(248, 251, 255, 0.88);
+  box-shadow: 10px 0 30px rgba(122, 146, 185, 0.12);
+}
+
+.light-theme .admin-header {
+  background: rgba(245, 249, 255, 0.86);
+}
+
+.light-theme .welcome-card {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(242, 247, 255, 0.96));
+}
+
+.light-theme .theme-switch {
+  background: rgba(77, 141, 255, 0.05);
+}
+
+.light-theme .theme-btn:hover {
+  background: rgba(77, 141, 255, 0.12);
 }
 
 @media (max-width: 900px) {
@@ -992,5 +1089,51 @@ function openPage(nextPage) {
 
 .admin-layout :deep(.selected-row) {
   background: rgba(61, 124, 255, 0.12) !important;
+}
+
+.admin-layout.light-theme :deep(.menu-header),
+.admin-layout.light-theme :deep(.card-header),
+.admin-layout.light-theme :deep(.ad-add-row) {
+  background: linear-gradient(135deg, rgba(228, 238, 255, 0.96), rgba(241, 247, 255, 0.98)) !important;
+}
+
+.admin-layout.light-theme :deep(.menu-content),
+.admin-layout.light-theme :deep(.card-card),
+.admin-layout.light-theme :deep(.friend-card),
+.admin-layout.light-theme :deep(.system-card),
+.admin-layout.light-theme :deep(.user-card),
+.admin-layout.light-theme :deep(.ad-card),
+.admin-layout.light-theme :deep(.batch-operations),
+.admin-layout.light-theme :deep(.card-filter-add),
+.admin-layout.light-theme :deep(.advanced-section),
+.admin-layout.light-theme :deep(.modal) {
+  background: rgba(255, 255, 255, 0.9) !important;
+}
+
+.admin-layout.light-theme :deep(.card-table th),
+.admin-layout.light-theme :deep(.friend-table th),
+.admin-layout.light-theme :deep(.ad-table th) {
+  background: rgba(239, 245, 255, 0.96) !important;
+}
+
+.admin-layout.light-theme :deep(.input),
+.admin-layout.light-theme :deep(.table-input),
+.admin-layout.light-theme :deep(.menu-name-input),
+.admin-layout.light-theme :deep(.sub-menu-name-input),
+.admin-layout.light-theme :deep(.order-input),
+.admin-layout.light-theme :deep(select),
+.admin-layout.light-theme :deep(input[type='text']),
+.admin-layout.light-theme :deep(input[type='password']),
+.admin-layout.light-theme :deep(input[type='url']) {
+  background: rgba(248, 251, 255, 0.96) !important;
+}
+
+.admin-layout.light-theme :deep(.btn-outline),
+.admin-layout.light-theme :deep(.btn-secondary),
+.admin-layout.light-theme :deep(.type-btn),
+.admin-layout.light-theme :deep(.clear-search-btn),
+.admin-layout.light-theme :deep(.btn-cancel-select),
+.admin-layout.light-theme :deep(.retry-btn) {
+  background: rgba(241, 246, 255, 0.96) !important;
 }
 </style>
