@@ -1150,6 +1150,42 @@ function setTheme(nextTheme) {
   box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3) !important;
 }
 
+.admin-layout.light-theme :deep(.menu-header .page-title),
+.admin-layout.light-theme :deep(.card-header .page-title),
+.admin-layout.light-theme :deep(.ad-add-row .page-title) {
+  color: #ffffff !important;
+}
+
+.admin-layout.light-theme :deep(.card-header .search-input),
+.admin-layout.light-theme :deep(.menu-header .search-input) {
+  background: rgba(255, 255, 255, 0.12) !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.34) !important;
+}
+
+.admin-layout.light-theme :deep(.card-header .search-input::placeholder),
+.admin-layout.light-theme :deep(.menu-header .search-input::placeholder) {
+  color: rgba(255, 255, 255, 0.78) !important;
+}
+
+.admin-layout.light-theme :deep(.card-header .search-input:focus),
+.admin-layout.light-theme :deep(.menu-header .search-input:focus) {
+  background: rgba(255, 255, 255, 0.18) !important;
+  border-color: rgba(255, 255, 255, 0.8) !important;
+  box-shadow: none !important;
+}
+
+.admin-layout.light-theme :deep(.card-header .search-icon),
+.admin-layout.light-theme :deep(.menu-header .search-icon),
+.admin-layout.light-theme :deep(.card-header .clear-btn),
+.admin-layout.light-theme :deep(.menu-header .clear-btn),
+.admin-layout.light-theme :deep(.card-header .search-result-tip),
+.admin-layout.light-theme :deep(.menu-header .search-result-tip),
+.admin-layout.light-theme :deep(.card-header .clear-search-btn),
+.admin-layout.light-theme :deep(.menu-header .clear-search-btn) {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
 .admin-layout.light-theme :deep(.menu-content),
 .admin-layout.light-theme :deep(.card-card),
 .admin-layout.light-theme :deep(.friend-card),
