@@ -3,7 +3,13 @@
     <div class="login-card">
       <h2 class="login-title">后台管理登录</h2>
       <div class="login-form">
-        <input v-model="username" type="text" placeholder="用户名" class="login-input" @keyup.enter="handleLogin" />
+        <input
+          v-model="username"
+          type="text"
+          placeholder="用户名"
+          class="login-input"
+          @keyup.enter="handleLogin"
+        />
         <div class="password-input-wrapper">
           <input
             v-model="password"
@@ -13,8 +19,8 @@
             @keyup.enter="handleLogin"
           />
           <span class="toggle-password" @click="showPassword = !showPassword">
-            <svg v-if="showPassword" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2566d8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>
-            <svg v-else width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2566d8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7a21.77 21.77 0 0 1 5.06-6.06"/><path d="M1 1l22 22"/><path d="M9.53 9.53A3 3 0 0 0 12 15a3 3 0 0 0 2.47-5.47"/></svg>
+            <svg v-if="showPassword" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>
+            <svg v-else width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7a21.77 21.77 0 0 1 5.06-6.06"/><path d="M1 1l22 22"/><path d="M9.53 9.53A3 3 0 0 0 12 15a3 3 0 0 0 2.47-5.47"/></svg>
           </span>
         </div>
         <div class="login-buttons">
@@ -32,83 +38,89 @@
       </div>
     </div>
   </div>
-  
+
   <div v-else class="admin-layout">
     <aside class="admin-sider" :class="{ open: siderOpen }" @click.self="closeSider">
-      <div class="logo clickable" @click="page='welcome'; closeSider()">Admin</div>
+      <div class="logo clickable" @click="openPage('welcome')">Admin</div>
       <ul class="menu-list">
-        <li :class="{active: page==='menu'}" @click="page='menu'; closeSider()">栏目管理</li>
-        <li :class="{active: page==='card'}" @click="page='card'; closeSider()">卡片管理</li>
-        <li :class="{active: page==='ad'}" @click="page='ad'; closeSider()">广告管理</li>
-        <li :class="{active: page==='friend'}" @click="page='friend'; closeSider()">友链管理</li>
-        <li :class="{active: page==='system'}" @click="page='system'; closeSider()">系统设置</li>
-        <li :class="{active: page==='user'}" @click="page='user'; closeSider()">用户管理</li>
+        <li :class="{ active: page === 'menu' }" @click="openPage('menu')">栏目管理</li>
+        <li :class="{ active: page === 'card' }" @click="openPage('card')">卡片管理</li>
+        <li :class="{ active: page === 'ad' }" @click="openPage('ad')">广告管理</li>
+        <li :class="{ active: page === 'friend' }" @click="openPage('friend')">友链管理</li>
+        <li :class="{ active: page === 'system' }" @click="openPage('system')">系统设置</li>
+        <li :class="{ active: page === 'user' }" @click="openPage('user')">用户管理</li>
       </ul>
     </aside>
     <main class="admin-main">
       <div class="admin-header">
-        <button class="menu-toggle" @click="toggleSider">
-          &#9776;
-        </button>
+        <button class="menu-toggle" @click="toggleSider">☰</button>
         <div class="header-title">{{ pageTitle }}</div>
         <div class="header-actions">
-          <span class="home-icon" @click="goHome" title="进入主页">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M3 10.5L12 4l9 6.5V20a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1v-4h-4v4a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V10.5z" stroke="#2566d8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span class="home-icon" @click="goHome" title="进入首页">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <path d="M3 10.5L12 4l9 6.5V20a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1v-4h-4v4a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V10.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
           </span>
           <button class="btn logout-btn" @click="logout">退出登录</button>
         </div>
       </div>
       <div class="admin-content">
-        <div v-if="page==='welcome'" class="welcome-page">
-          <h2 class="welcome-title">欢迎您进入 Nav-Item 后台管理系统</h2>
+        <div v-if="page === 'welcome'" class="welcome-page">
+          <h2 class="welcome-title">欢迎进入 Nav-Item 后台管理系统</h2>
           <div class="welcome-cards">
             <div class="welcome-card">
-              <div class="welcome-icon time-icon">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#1abc9c" stroke-width="2"/><path d="M12 6v6l4 2" stroke="#1abc9c" stroke-width="2" stroke-linecap="round"/></svg>
+              <div class="welcome-icon">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                  <path d="M12 6v6l4 2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
               </div>
               <div class="welcome-label">上次登录时间</div>
               <div class="welcome-value">{{ lastLoginTime || '--' }}</div>
             </div>
             <div class="welcome-card">
-              <div class="welcome-icon ip-icon">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#1abc9c" stroke-width="2"/><path d="M12 8a4 4 0 1 1 0 8 4 4 0 0 1 0-8z" stroke="#1abc9c" stroke-width="2"/><circle cx="12" cy="12" r="2" fill="#1abc9c"/></svg>
+              <div class="welcome-icon">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                  <path d="M12 8a4 4 0 1 1 0 8 4 4 0 0 1 0-8z" stroke="currentColor" stroke-width="2"/>
+                  <circle cx="12" cy="12" r="2" fill="currentColor"/>
+                </svg>
               </div>
-              <div class="welcome-label">上次登录IP</div>
+              <div class="welcome-label">上次登录 IP</div>
               <div class="welcome-value">{{ lastLoginIp || '--' }}</div>
             </div>
           </div>
         </div>
-        <MenuManage v-if="page==='menu'" />
-        <CardManage v-if="page==='card'" />
-        <AdManage v-if="page==='ad'" />
-        <FriendLinkManage v-if="page==='friend'" />
-        <SystemManage v-if="page==='system'" />
-        <UserManage v-if="page==='user'" />
+        <MenuManage v-if="page === 'menu'" />
+        <CardManage v-if="page === 'card'" />
+        <AdManage v-if="page === 'ad'" />
+        <FriendLinkManage v-if="page === 'friend'" />
+        <SystemManage v-if="page === 'system'" />
+        <UserManage v-if="page === 'user'" />
       </div>
       <footer class="admin-footer">
-        <p class="admin-copyright">Copyright © 2025 Nav-Item | <a href="https://github.com/eooce/Nav-Item" target="_blank" class="footer-link">Powered by eooce</a></p>
+        <p class="admin-copyright">
+          Copyright © 2025 Nav-Item |
+          <a href="https://github.com/eooce/Nav-Item" target="_blank" class="footer-link">Powered by eooce</a>
+        </p>
       </footer>
     </main>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { login } from '../api';
-import MenuManage from './admin/MenuManage.vue';
-import CardManage from './admin/CardManage.vue';
 import AdManage from './admin/AdManage.vue';
+import CardManage from './admin/CardManage.vue';
 import FriendLinkManage from './admin/FriendLinkManage.vue';
+import MenuManage from './admin/MenuManage.vue';
 import SystemManage from './admin/SystemManage.vue';
 import UserManage from './admin/UserManage.vue';
 
 const page = ref('welcome');
-
-// [优化核心 1]：初始化时，优先尝试从浏览器的 localStorage（本地硬盘仓库）里读取。
-// 这样即使刷新网页或关掉重开，只要缓存还在，界面就能立刻显示信息，不再白板或闪烁。
 const lastLoginTime = ref(localStorage.getItem('admin_last_login_time') || '');
 const lastLoginIp = ref(localStorage.getItem('admin_last_login_ip') || '');
-
 const isLoggedIn = ref(false);
 const username = ref('');
 const password = ref('');
@@ -119,42 +131,48 @@ const siderOpen = ref(false);
 
 const pageTitle = computed(() => {
   switch (page.value) {
-    case 'menu': return '栏目管理';
-    case 'card': return '卡片管理';
-    case 'ad': return '广告管理';
-    case 'friend': return '友链管理';
-    case 'system': return '系统全局设置';
-    case 'user': return '用户管理';
-    default: return '';
+    case 'menu':
+      return '栏目管理';
+    case 'card':
+      return '卡片管理';
+    case 'ad':
+      return '广告管理';
+    case 'friend':
+      return '友链管理';
+    case 'system':
+      return '系统设置';
+    case 'user':
+      return '用户管理';
+    default:
+      return '';
   }
 });
 
-// 检查登录状态并验证3天有效期
 function checkLoginStatus() {
   const token = localStorage.getItem('token');
   const tokenTimestamp = localStorage.getItem('token_timestamp');
-  
+
   if (token && tokenTimestamp) {
     const now = Date.now();
     const threeDays = 3 * 24 * 60 * 60 * 1000;
-    if (now - parseInt(tokenTimestamp) > threeDays) {
-      // Token 过期，清除并跳转到登录页
+    if (now - Number.parseInt(tokenTimestamp, 10) > threeDays) {
       logout();
       return false;
     }
     isLoggedIn.value = true;
     return true;
-  } else if (token) {
-    // 兼容旧版：有 token 但没有时间戳，设置时间戳
+  }
+
+  if (token) {
     localStorage.setItem('token_timestamp', Date.now().toString());
     isLoggedIn.value = true;
     return true;
   }
+
   isLoggedIn.value = false;
   return false;
 }
 
-// 未登录时自动跳转到登录页面
 function redirectToLogin() {
   if (!isLoggedIn.value) {
     page.value = 'welcome';
@@ -164,40 +182,35 @@ function redirectToLogin() {
 onMounted(() => {
   const loggedIn = checkLoginStatus();
   if (loggedIn) {
-    // 即使我们从本地读取了缓存，这里依然会去后端拉取最新信息
-    // 保证如果有其他设备登录导致数据变化，也能静默同步更新。
     fetchLastLoginInfo();
   } else {
-    // 未登录时自动跳转到登录页面
     redirectToLogin();
   }
 });
 
-// 监听登录状态变化，自动跳转
-watch(isLoggedIn, (newVal) => {
-  if (!newVal) {
+watch(isLoggedIn, (nextValue) => {
+  if (!nextValue) {
     redirectToLogin();
   }
 });
 
 async function fetchLastLoginInfo() {
   try {
-    const res = await fetch('/api/users/me', { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
-    if (res.ok) {
-      const data = await res.json();
-      
-      // [优化核心 2]：服务端拉取到数据后，不但更新页面变量，还要同步存入 localStorage 持久化
-      if (data.last_login_time) {
-        lastLoginTime.value = data.last_login_time;
-        localStorage.setItem('admin_last_login_time', data.last_login_time);
-      }
-      
-      // 兼容后端可能返回的驼峰或下划线命名
-      const ip = data.lastLoginIp || data.last_login_ip;
-      if (ip) {
-        lastLoginIp.value = ip;
-        localStorage.setItem('admin_last_login_ip', ip);
-      }
+    const res = await fetch('/api/users/me', {
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+
+    if (data.last_login_time) {
+      lastLoginTime.value = data.last_login_time;
+      localStorage.setItem('admin_last_login_time', data.last_login_time);
+    }
+
+    const ip = data.lastLoginIp || data.last_login_ip;
+    if (ip) {
+      lastLoginIp.value = ip;
+      localStorage.setItem('admin_last_login_ip', ip);
     }
   } catch (error) {
     console.error('获取用户信息失败:', error);
@@ -209,28 +222,26 @@ async function handleLogin() {
     loginError.value = '请输入用户名和密码';
     return;
   }
-  
+
   loading.value = true;
   loginError.value = '';
-  
+
   try {
     const response = await login(username.value, password.value);
-    if (response.data.token) {
-      localStorage.setItem('token', response.data.token);
-      // 记录登录时间戳，用于3天有效期检查
-      localStorage.setItem('token_timestamp', Date.now().toString());
-      isLoggedIn.value = true;
-      
-      // [优化核心 3]：用户手动登录成功时，第一时间拦截到时间与IP并双向保存
-      const time = response.data.lastLoginTime || response.data.last_login_time || '';
-      const ip = response.data.lastLoginIp || response.data.last_login_ip || '';
-      
-      lastLoginTime.value = time;
-      lastLoginIp.value = ip;
-      
-      if (time) localStorage.setItem('admin_last_login_time', time);
-      if (ip) localStorage.setItem('admin_last_login_ip', ip);
-    }
+    if (!response.data.token) return;
+
+    localStorage.setItem('token', response.data.token);
+    localStorage.setItem('token_timestamp', Date.now().toString());
+    isLoggedIn.value = true;
+
+    const time = response.data.lastLoginTime || response.data.last_login_time || '';
+    const ip = response.data.lastLoginIp || response.data.last_login_ip || '';
+
+    lastLoginTime.value = time;
+    lastLoginIp.value = ip;
+
+    if (time) localStorage.setItem('admin_last_login_time', time);
+    if (ip) localStorage.setItem('admin_last_login_ip', ip);
   } catch (error) {
     loginError.value = error.response?.data?.message || '登录失败，请检查用户名和密码';
   } finally {
@@ -241,107 +252,150 @@ async function handleLogin() {
 function logout() {
   localStorage.removeItem('token');
   localStorage.removeItem('token_timestamp');
-  
-  // [优化核心 4]：退出登录时，为了保护隐私，一定要把本地缓存的IP和时间清空
   localStorage.removeItem('admin_last_login_time');
   localStorage.removeItem('admin_last_login_ip');
+
   lastLoginTime.value = '';
   lastLoginIp.value = '';
-  
   isLoggedIn.value = false;
   username.value = '';
   password.value = '';
   loginError.value = '';
   page.value = 'welcome';
-  // 自动跳转到登录页面
+
   redirectToLogin();
 }
 
 function goHome() {
   window.open('/', '_blank');
 }
+
 function toggleSider() {
   siderOpen.value = !siderOpen.value;
 }
+
 function closeSider() {
   siderOpen.value = false;
+}
+
+function openPage(nextPage) {
+  page.value = nextPage;
+  closeSider();
 }
 </script>
 
 <style scoped>
-/* 这里的 CSS 保持原样，未做任何修改以确保界面样式稳定 */
 .login-container {
+  --admin-bg: #07111f;
+  --admin-bg-soft: #0c1729;
+  --admin-panel: rgba(11, 22, 39, 0.88);
+  --admin-panel-strong: #101d32;
+  --admin-panel-muted: #16253d;
+  --admin-border: rgba(143, 168, 208, 0.18);
+  --admin-border-strong: rgba(108, 140, 196, 0.32);
+  --admin-text: #e8eefc;
+  --admin-text-soft: #9baccc;
+  --admin-primary: #69a8ff;
+  --admin-primary-strong: #3e7bff;
+  --admin-danger: #ff7b8f;
+  --admin-success: #4ed6b8;
+  --admin-shadow: 0 22px 60px rgba(0, 0, 0, 0.45);
   display: flex;
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background: linear-gradient(135deg,#667eea,#764ba2);
+  background:
+    radial-gradient(circle at top left, rgba(62, 123, 255, 0.22), transparent 30%),
+    radial-gradient(circle at top right, rgba(78, 214, 184, 0.14), transparent 28%),
+    linear-gradient(160deg, #050b15 0%, #08111e 45%, #0b1523 100%);
   font-family: 'Segoe UI', Arial, sans-serif;
+  color: var(--admin-text);
 }
+
 .login-card {
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-  padding: 0 40px 40px 40px;
+  background: var(--admin-panel);
+  backdrop-filter: blur(18px);
+  border: 1px solid var(--admin-border);
+  border-radius: 24px;
+  box-shadow: var(--admin-shadow);
+  padding: 0 40px 40px;
   width: 400px;
   max-width: 90%;
 }
+
 .login-title {
   text-align: center;
   font-size: 2rem;
-  font-weight: bold;
-  color: #2164e1;
+  font-weight: 700;
+  color: var(--admin-text);
   margin-bottom: 32px;
   letter-spacing: 2px;
 }
+
 .login-form {
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
+
 .login-input {
   padding: 12px 16px;
-  border: 1px solid #d0d7e2;
-  border-radius: 8px;
+  border: 1px solid var(--admin-border);
+  border-radius: 14px;
   font-size: 16px;
-  background: #fff;
-  color: #222;
+  background: rgba(10, 20, 35, 0.9);
+  color: var(--admin-text);
   height: 48px;
   line-height: 48px;
   box-sizing: border-box;
 }
-.login-input:focus {
-  outline: 2px solid #2566d8;
-  border-color: #2566d8;
+
+.login-input::placeholder {
+  color: var(--admin-text-soft);
 }
+
+.login-input:focus {
+  outline: none;
+  border-color: var(--admin-primary);
+  box-shadow: 0 0 0 4px rgba(105, 168, 255, 0.16);
+}
+
 .login-btn {
-  background: #2566d8;
-  color: #fff;
+  flex: 2;
+  background: linear-gradient(135deg, var(--admin-primary-strong), var(--admin-primary));
+  color: #06111f;
   border: none;
-  border-radius: 8px;
+  border-radius: 14px;
   padding: 12px;
   font-size: 16px;
-  font-weight: 500;
+  font-weight: 700;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: transform 0.2s, box-shadow 0.2s, filter 0.2s;
 }
+
 .login-btn:hover:not(:disabled) {
-  background: #174ea6;
+  transform: translateY(-1px);
+  box-shadow: 0 12px 30px rgba(62, 123, 255, 0.28);
+  filter: brightness(1.05);
 }
+
 .login-btn:disabled {
-  background: #ccc;
+  background: rgba(93, 111, 144, 0.45);
+  color: rgba(232, 238, 252, 0.5);
   cursor: not-allowed;
 }
+
 .login-buttons {
   display: flex;
   gap: 12px;
   align-items: center;
 }
+
 .back-btn {
-  background: #f8f9fa;
-  color: #2b2b2b;
-  border: 1px solid #dee2e6;
-  border-radius: 8px;
+  background: rgba(18, 33, 56, 0.85);
+  color: var(--admin-text);
+  border: 1px solid var(--admin-border);
+  border-radius: 14px;
   padding: 12px 16px;
   font-size: 16px;
   font-weight: 500;
@@ -353,78 +407,113 @@ function closeSider() {
   flex: 1;
   justify-content: center;
 }
+
 .back-btn:hover {
-  background: #e9ecef;
-  color: #7e42ff;
-  border-color: #adb5bd;
+  background: rgba(25, 44, 73, 0.95);
+  color: var(--admin-primary);
+  border-color: var(--admin-border-strong);
 }
-.login-btn {
-  flex: 2;
-}
+
 .login-error {
-  color: #e74c3c;
+  color: #ff97a6;
   text-align: center;
   margin: 0;
   font-size: 14px;
 }
+
 .admin-layout {
+  --admin-bg: #07111f;
+  --admin-bg-soft: #0c1729;
+  --admin-panel: rgba(12, 22, 38, 0.92);
+  --admin-panel-strong: #111d30;
+  --admin-panel-muted: #16243a;
+  --admin-border: rgba(143, 168, 208, 0.14);
+  --admin-border-strong: rgba(105, 168, 255, 0.26);
+  --admin-text: #e7eefc;
+  --admin-text-soft: #97aacb;
+  --admin-primary: #69a8ff;
+  --admin-primary-strong: #3d7cff;
+  --admin-danger: #ff7f92;
+  --admin-success: #52d3ba;
+  --admin-shadow: 0 22px 60px rgba(0, 0, 0, 0.36);
   display: flex;
   min-height: 100vh;
-  background: #f5f6fa;
+  background:
+    radial-gradient(circle at top left, rgba(62, 123, 255, 0.14), transparent 24%),
+    radial-gradient(circle at 85% 15%, rgba(82, 211, 186, 0.12), transparent 22%),
+    linear-gradient(180deg, var(--admin-bg) 0%, #09111d 100%);
   font-family: 'Segoe UI', Arial, sans-serif;
 }
+
 .admin-sider {
   width: 180px;
-  background: #fff;
-  color: #222;
+  background: rgba(7, 14, 26, 0.88);
+  backdrop-filter: blur(20px);
+  color: var(--admin-text);
   display: flex;
   flex-direction: column;
   align-items: stretch;
   padding-top: 32px;
-  box-shadow: 2px 0 8px rgba(0,0,0,0.06);
+  border-right: 1px solid var(--admin-border);
+  box-shadow: 8px 0 30px rgba(0, 0, 0, 0.25);
   position: fixed;
   top: 0;
   left: 0;
   height: 100vh;
   z-index: 100;
 }
+
 .logo {
   font-size: 2rem;
-  font-weight: bold;
+  font-weight: 700;
   text-align: center;
   margin-bottom: 32px;
   letter-spacing: 2px;
-  color: #1349a6;
+  color: var(--admin-text);
   cursor: pointer;
   user-select: none;
-  transition: color 0.2s;
+  transition: color 0.2s, text-shadow 0.2s;
 }
+
 .logo.clickable:hover {
-  color: #176efa;
+  color: var(--admin-primary);
+  text-shadow: 0 0 18px rgba(105, 168, 255, 0.35);
 }
+
 .menu-list {
   list-style: none;
   padding: 0;
   margin: 0;
   flex: 1;
 }
+
 .menu-list li {
-  padding: 16px 32px;
+  padding: 16px 28px;
+  margin: 4px 10px;
   cursor: pointer;
   font-size: 16px;
   border-left: 4px solid transparent;
-  transition: background 0.2s, border-color 0.2s, color 0.2s;
-  color: #222;
+  border-radius: 14px;
+  transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.2s;
+  color: var(--admin-text-soft);
 }
+
+.menu-list li:hover {
+  background: rgba(105, 168, 255, 0.08);
+  color: var(--admin-text);
+  transform: translateX(2px);
+}
+
 .menu-list li.active {
-  background: #eaf1ff;
-  border-left: 4px solid #2566d8;
-  color: #2566d8;
-  font-weight: bold;
+  background: linear-gradient(135deg, rgba(61, 124, 255, 0.16), rgba(82, 211, 186, 0.1));
+  border-left: 4px solid var(--admin-primary);
+  color: var(--admin-primary);
+  font-weight: 700;
 }
+
 .admin-main {
   flex: 1;
-  background: #f5f6fa;
+  background: transparent;
   padding: 64px 0 0 180px;
   min-width: 0;
   overflow-x: auto;
@@ -432,20 +521,23 @@ function closeSider() {
   flex-direction: column;
   align-items: stretch;
 }
+
 .admin-header {
   display: flex;
   justify-content: center;
   align-items: center;
   height: 64px;
   padding: 0 48px 0 0;
-  background: #f5f6fa;
+  background: rgba(7, 14, 26, 0.72);
+  backdrop-filter: blur(18px);
   position: fixed;
   top: 0;
   left: 180px;
   right: 0;
   z-index: 101;
-  border-bottom: 1px solid #e3e6ef;
+  border-bottom: 1px solid var(--admin-border);
 }
+
 .header-title {
   flex: 1;
   text-align: center;
@@ -453,78 +545,93 @@ function closeSider() {
   font-size: 1.5rem;
   font-weight: 500;
   letter-spacing: 2px;
-  color: #222;
+  color: var(--admin-text);
 }
+
 .header-actions {
   display: flex;
   align-items: center;
   gap: 8px;
 }
+
 .home-icon {
   display: flex;
   align-items: center;
   margin-right: 18px;
   cursor: pointer;
   border-radius: 50%;
-  transition: background 0.2s;
+  transition: background 0.2s, transform 0.2s;
   padding: 4px;
+  color: var(--admin-primary);
 }
+
 .home-icon:hover {
-  background: #eaf1ff;
+  background: rgba(105, 168, 255, 0.12);
+  transform: translateY(-1px);
 }
+
 .btn.logout-btn {
-  background: #f7caca;
-  color: #e74c3c;
-  border: 1px solid #f7caca;
-  border-radius: 10px;
-  padding: 6px 10px;
+  background: rgba(255, 127, 146, 0.14);
+  color: #ff9dac;
+  border: 1px solid rgba(255, 127, 146, 0.28);
+  border-radius: 12px;
+  padding: 8px 12px;
   font-size: 15px;
-  font-weight: 500;
+  font-weight: 600;
   margin: 0;
-  transition: background 0.2s, color 0.2s;
+  transition: background 0.2s, color 0.2s, transform 0.2s;
 }
+
 .btn.logout-btn:hover {
-  background: #e74c3c;
-  color: #fff;
+  background: rgba(255, 127, 146, 0.24);
+  color: #ffd8de;
+  transform: translateY(-1px);
 }
+
 .admin-content {
   flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 10px 0 0 0;
+  padding: 24px 22px 0;
   margin-top: 0;
 }
+
 .admin-footer {
   margin-top: auto;
   text-align: center;
-  padding: 2rem 0 1rem 0;
+  padding: 2rem 0 1rem;
   background: transparent;
 }
+
 .admin-copyright {
-  color: #1d70cc;
+  color: var(--admin-text-soft);
   font-size: 14px;
   margin: 0;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
 }
+
 .footer-link {
-  color: #1d70cc;
+  color: var(--admin-primary);
   text-decoration: none;
   transition: color 0.2s;
 }
+
 .footer-link:hover {
-  color: #3218ed;
+  color: #9ed0ff;
 }
+
 .password-input-wrapper {
   position: relative;
   width: 100%;
 }
+
 .password-input {
   width: 100%;
   padding-right: 48px;
-  border-radius: 8px;
+  border-radius: 14px;
   box-sizing: border-box;
 }
+
 .toggle-password {
   position: absolute;
   top: 0;
@@ -537,83 +644,101 @@ function closeSider() {
   background: none;
   border: none;
   cursor: pointer;
-  color: #2566d8;
+  color: var(--admin-primary);
   margin: 0;
   padding: 0;
   z-index: 2;
   transition: color 0.2s;
 }
+
 .toggle-password:hover {
-  color: #174ea6;
+  color: #9ed0ff;
   background: none;
 }
+
 .toggle-password svg {
   display: block;
   width: 22px;
   height: 22px;
   pointer-events: none;
 }
+
 .welcome-page {
   display: flex;
   flex-direction: column;
   align-items: center;
   margin-top: 48px;
+  width: min(1100px, 100%);
 }
+
 .welcome-title {
   text-align: center;
   font-size: 2rem;
   font-weight: 600;
-  color: #222;
+  color: var(--admin-text);
   margin-bottom: 32px;
 }
+
 .welcome-cards {
   display: flex;
   gap: 32px;
 }
+
 .welcome-card {
-  background: #fff;
-  border-radius: 18px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  background: linear-gradient(180deg, rgba(16, 29, 50, 0.94), rgba(12, 24, 40, 0.94));
+  border-radius: 22px;
+  box-shadow: var(--admin-shadow);
   padding: 32px 40px;
   min-width: 260px;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  border: 1.5px solid #e3e6ef;
+  border: 1px solid var(--admin-border);
 }
+
 .welcome-icon {
   width: 48px;
   height: 48px;
-  background: #f5f6fa;
+  background: rgba(105, 168, 255, 0.08);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   margin-bottom: 18px;
+  color: var(--admin-success);
 }
+
 .welcome-label {
   font-size: 1.1rem;
-  color: #222;
+  color: var(--admin-text-soft);
   margin-bottom: 8px;
 }
+
 .welcome-value {
   font-size: 2rem;
-  color: #1abc9c;
+  color: var(--admin-success);
   font-weight: 600;
   letter-spacing: 1px;
 }
+
+.menu-toggle {
+  display: none;
+}
+
 @media (max-width: 900px) {
   .welcome-cards {
     flex-direction: column;
     gap: 18px;
     align-items: center;
   }
+
   .welcome-card {
     min-width: 220px;
     width: 90vw;
-    padding: 24px 10px;
+    padding: 24px 18px;
   }
 }
+
 @media (max-width: 768px) {
   .admin-sider {
     position: fixed;
@@ -625,24 +750,28 @@ function closeSider() {
     z-index: 200;
     transform: translateX(-100%);
     transition: transform 0.3s;
-    box-shadow: 2px 0 8px rgba(0,0,0,0.12);
-    background: #fff;
+    box-shadow: 16px 0 50px rgba(0, 0, 0, 0.45);
+    background: rgba(7, 14, 26, 0.96);
   }
+
   .admin-sider.open {
     transform: translateX(0);
   }
+
   .admin-main {
-    padding: 64px 0 0 0 !important;
+    padding: 64px 0 0 !important;
   }
+
   .admin-header {
     left: 0 !important;
     width: 100vw !important;
     min-width: 0 !important;
-    padding: 0 8px 0 8px !important;
+    padding: 0 8px !important;
     box-sizing: border-box;
     flex-wrap: nowrap;
     height: 56px;
   }
+
   .header-title {
     font-size: 1.1rem !important;
     margin-left: 0 !important;
@@ -654,15 +783,18 @@ function closeSider() {
     text-overflow: ellipsis;
     letter-spacing: 1px;
   }
+
   .header-actions {
     gap: 4px;
     margin-left: 0;
   }
+
   .btn.logout-btn {
     padding: 4px 8px;
     font-size: 13px;
     border-radius: 8px;
   }
+
   .menu-toggle {
     display: inline-flex !important;
     align-items: center;
@@ -670,15 +802,195 @@ function closeSider() {
     width: 40px;
     height: 40px;
     margin-right: 4px !important;
-    background: none;
-    border: none;
+    background: rgba(105, 168, 255, 0.08);
+    border: 1px solid var(--admin-border);
+    border-radius: 12px;
     font-size: 2rem;
     cursor: pointer;
-    color: #2566d8;
+    color: var(--admin-primary);
     z-index: 300;
   }
+
+  .admin-content {
+    padding: 16px 10px 0;
+  }
 }
-.menu-toggle {
-  display: none;
+
+.admin-layout :deep(.menu-header),
+.admin-layout :deep(.card-header),
+.admin-layout :deep(.ad-add-row) {
+  background: linear-gradient(135deg, rgba(34, 56, 94, 0.95), rgba(16, 28, 48, 0.96)) !important;
+  border: 1px solid var(--admin-border) !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.28) !important;
+}
+
+.admin-layout :deep(.menu-content),
+.admin-layout :deep(.card-card),
+.admin-layout :deep(.friend-card),
+.admin-layout :deep(.system-card),
+.admin-layout :deep(.user-card),
+.admin-layout :deep(.ad-card),
+.admin-layout :deep(.batch-operations),
+.admin-layout :deep(.card-filter-add),
+.admin-layout :deep(.advanced-section),
+.admin-layout :deep(.modal) {
+  background: rgba(13, 23, 39, 0.92) !important;
+  border: 1px solid var(--admin-border) !important;
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.24) !important;
+  color: var(--admin-text) !important;
+}
+
+.admin-layout :deep(.menu-item),
+.admin-layout :deep(.main-menu),
+.admin-layout :deep(.sub-menu-item),
+.admin-layout :deep(.sub-menu-section),
+.admin-layout :deep(.sub-menu-header),
+.admin-layout :deep(.batch-operations),
+.admin-layout :deep(.move-preview),
+.admin-layout :deep(.drop-zone),
+.admin-layout :deep(.empty-state),
+.admin-layout :deep(.empty-sub-menu) {
+  background: transparent !important;
+  color: var(--admin-text) !important;
+}
+
+.admin-layout :deep(.menu-item),
+.admin-layout :deep(.sub-menu-section),
+.admin-layout :deep(.sub-menu-header),
+.admin-layout :deep(.sub-menu-item),
+.admin-layout :deep(.card-table th),
+.admin-layout :deep(.card-table td),
+.admin-layout :deep(.friend-table th),
+.admin-layout :deep(.friend-table td),
+.admin-layout :deep(.ad-table th),
+.admin-layout :deep(.ad-table td),
+.admin-layout :deep(.modal-header),
+.admin-layout :deep(.modal-footer),
+.admin-layout :deep(.advanced-body) {
+  border-color: var(--admin-border) !important;
+}
+
+.admin-layout :deep(.page-title),
+.admin-layout :deep(.section-title),
+.admin-layout :deep(.sub-menu-title),
+.admin-layout :deep(.form-group label),
+.admin-layout :deep(.welcome-label),
+.admin-layout :deep(.hint),
+.admin-layout :deep(.move-preview p),
+.admin-layout :deep(.drop-main-text),
+.admin-layout :deep(.drop-sub-text),
+.admin-layout :deep(.empty-state p),
+.admin-layout :deep(.empty-sub-menu p),
+.admin-layout :deep(.menu-tag) {
+  color: var(--admin-text-soft) !important;
+}
+
+.admin-layout :deep(.welcome-value),
+.admin-layout :deep(.target-preview),
+.admin-layout :deep(.status-text.success),
+.admin-layout :deep(.r2-url-hint),
+.admin-layout :deep(.parse-tip.success),
+.admin-layout :deep(.message.success) {
+  color: var(--admin-success) !important;
+}
+
+.admin-layout :deep(.parse-tip.error),
+.admin-layout :deep(.message.error),
+.admin-layout :deep(.format-error),
+.admin-layout :deep(.login-error) {
+  color: #ff97a6 !important;
+}
+
+.admin-layout :deep(.input),
+.admin-layout :deep(.table-input),
+.admin-layout :deep(.menu-name-input),
+.admin-layout :deep(.sub-menu-name-input),
+.admin-layout :deep(.order-input),
+.admin-layout :deep(select),
+.admin-layout :deep(input[type='text']),
+.admin-layout :deep(input[type='password']),
+.admin-layout :deep(input[type='url']) {
+  background: rgba(9, 18, 31, 0.92) !important;
+  color: var(--admin-text) !important;
+  border-color: var(--admin-border) !important;
+}
+
+.admin-layout :deep(.input::placeholder),
+.admin-layout :deep(.table-input::placeholder),
+.admin-layout :deep(.menu-name-input::placeholder),
+.admin-layout :deep(.sub-menu-name-input::placeholder) {
+  color: var(--admin-text-soft) !important;
+}
+
+.admin-layout :deep(.input:focus),
+.admin-layout :deep(.table-input:focus),
+.admin-layout :deep(.menu-name-input:focus),
+.admin-layout :deep(.sub-menu-name-input:focus),
+.admin-layout :deep(.order-input:focus),
+.admin-layout :deep(select:focus),
+.admin-layout :deep(input:focus) {
+  border-color: var(--admin-primary) !important;
+  box-shadow: 0 0 0 4px rgba(105, 168, 255, 0.14) !important;
+  outline: none !important;
+}
+
+.admin-layout :deep(.card-table),
+.admin-layout :deep(.friend-table),
+.admin-layout :deep(.ad-table) {
+  background: transparent !important;
+  color: var(--admin-text) !important;
+}
+
+.admin-layout :deep(.card-table th),
+.admin-layout :deep(.friend-table th),
+.admin-layout :deep(.ad-table th) {
+  background: rgba(18, 32, 52, 0.92) !important;
+  color: var(--admin-text-soft) !important;
+}
+
+.admin-layout :deep(.card-table tr:hover td),
+.admin-layout :deep(.friend-table tr:hover td),
+.admin-layout :deep(.ad-table tr:hover td),
+.admin-layout :deep(.menu-item:hover),
+.admin-layout :deep(.sub-menu-item:hover) {
+  background: rgba(105, 168, 255, 0.05) !important;
+}
+
+.admin-layout :deep(.logo-preview) {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border-color: var(--admin-border) !important;
+}
+
+.admin-layout :deep(.btn),
+.admin-layout :deep(.save-btn),
+.admin-layout :deep(.cache-btn),
+.admin-layout :deep(.search-btn),
+.admin-layout :deep(.btn-move),
+.admin-layout :deep(.type-btn.active) {
+  background: linear-gradient(135deg, var(--admin-primary-strong), var(--admin-primary)) !important;
+  color: #08111d !important;
+  border: 1px solid transparent !important;
+}
+
+.admin-layout :deep(.btn-outline),
+.admin-layout :deep(.btn-secondary),
+.admin-layout :deep(.type-btn),
+.admin-layout :deep(.clear-search-btn),
+.admin-layout :deep(.btn-cancel-select),
+.admin-layout :deep(.retry-btn) {
+  background: rgba(18, 33, 56, 0.82) !important;
+  color: var(--admin-text) !important;
+  border-color: var(--admin-border) !important;
+}
+
+.admin-layout :deep(.btn-danger),
+.admin-layout :deep(.logout-btn) {
+  background: rgba(255, 127, 146, 0.16) !important;
+  color: #ffb0bb !important;
+  border-color: rgba(255, 127, 146, 0.24) !important;
+}
+
+.admin-layout :deep(.selected-row) {
+  background: rgba(61, 124, 255, 0.12) !important;
 }
 </style>
